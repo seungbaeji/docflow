@@ -20,7 +20,8 @@
 
 ## example
 
-프로젝트 루트의 [`example/process_excel_invoice.py`](/Users/seungbaeji/Workspace/posco/docflow/example/process_excel_invoice.py) 예시로 현재 제공되는 문서 처리 usecase를 바로 실행해볼 수 있습니다.
+프로젝트 루트의 `example/process_excel_invoice.py` 예시로 현재 제공되는 문서 처리 usecase를 바로 실행해볼 수 있습니다.
+현재 예시는 outbound 파일 로더가 스텁이기 때문에 실제 파일을 읽지 않으며, 전달하는 경로는 예시 식별자 역할만 합니다.
 
 예시 실행:
 
