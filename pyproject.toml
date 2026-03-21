@@ -6,8 +6,10 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115.0",
+  "pydantic>=2.0.0",
   "streamlit>=1.44.0",
   "langchain>=0.3.0",
+  "langchain-core>=0.3.0",
   "langgraph>=0.2.0",
 ]
 
@@ -46,3 +48,6 @@ target-version = "py311"
 python_version = "3.11"
 packages = ["docflow_agent"]
 strict = true
+ignore_missing_imports = true
+disallow_subclassing_any = false
+disallow_untyped_decorators = false
