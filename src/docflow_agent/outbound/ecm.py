@@ -75,7 +75,7 @@ def download_document(client: EcmClient, document_id: str, destination_dir: str)
     response, payload = _request_bytes(client=client, method="GET", path=path)
 
     headers = response.headers
-    file_name = _extract_filename(headers) or f"{document_id}.bin"
+    file_name = _safe_filename(_extract_filename(headers)) or f"{document_id}.bin"
     content_type = headers.get_content_type() or "application/octet-stream"
 
     destination_path = Path(destination_dir) / file_name
@@ -106,9 +106,15 @@ def upload_document(
         extra_headers=headers,
         expect_json=False,
     )
+    raw_document_id = response.get("document_id")
+    if not isinstance(raw_document_id, str) or not raw_document_id:
+        raise EcmResponseError(
+            path=client.upload_path,
+            reason="Upload response did not include a document_id",
+        )
     return _parse_ecm_document(
         {
-            "document_id": response.get("document_id", file_info.name),
+            "document_id": raw_document_id,
             "name": response.get("name", file_info.name),
             "content_type": response.get("content_type", file_info.content_type),
             "metadata": response.get("metadata", metadata or {}),
@@ -224,6 +230,15 @@ def _extract_filename(headers: Message) -> str | None:
     if marker not in content_disposition:
         return None
     return content_disposition.split(marker, maxsplit=1)[1].strip('"')
+
+
+def _safe_filename(file_name: str | None) -> str | None:
+    if not file_name:
+        return None
+    sanitized = Path(file_name).name
+    if sanitized in {"", ".", ".."}:
+        return None
+    return sanitized
 
 
 def _parse_ecm_document(item: dict[str, object]) -> EcmDocument:

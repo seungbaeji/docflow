@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import cast
 from urllib.request import Request
 
+import pytest
 from pytest import MonkeyPatch
 
 from docflow_agent.outbound import ecm
@@ -16,6 +17,7 @@ from docflow_agent.outbound.ecm import (
     upload_document,
     verify_hmac_signature,
 )
+from docflow_agent.errors import EcmResponseError
 from docflow_agent.types.common import EcmAuth, EcmSearchQuery, FileInfo
 
 
@@ -114,6 +116,24 @@ def test_download_document_writes_file(monkeypatch: MonkeyPatch, tmp_path: Path)
     assert Path(file_info.path).read_bytes() == b"spreadsheet-bytes"
 
 
+def test_download_document_sanitizes_filename(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+    def fake_urlopen(request: Request, timeout: float) -> FakeResponse:
+        response = FakeResponse(b"spreadsheet-bytes", content_type="application/octet-stream")
+        response.headers["Content-Disposition"] = 'attachment; filename="../invoice.xlsx"'
+        return response
+
+    monkeypatch.setattr(ecm, "urlopen", fake_urlopen)
+
+    file_info = download_document(
+        client=EcmClient(base_url="https://ecm.example.com"),
+        document_id="doc-001",
+        destination_dir=str(tmp_path),
+    )
+
+    assert file_info.name == "invoice.xlsx"
+    assert Path(file_info.path).parent == tmp_path
+
+
 def test_upload_document_posts_file_bytes(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {}
     source_path = tmp_path / "invoice.xlsx"
@@ -150,3 +170,24 @@ def test_upload_document_posts_file_bytes(monkeypatch: MonkeyPatch, tmp_path: Pa
     headers = cast(dict[str, str], captured["headers"])
     assert headers["X-file-name"] == "invoice.xlsx"
     assert headers["X-metadata"] == '{"folder": "invoices"}'
+
+
+def test_upload_document_requires_document_id(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+    source_path = tmp_path / "invoice.xlsx"
+    source_path.write_bytes(b"fake-binary")
+
+    def fake_urlopen(request: Request, timeout: float) -> FakeResponse:
+        return FakeResponse(b"", content_type="application/json")
+
+    monkeypatch.setattr(ecm, "urlopen", fake_urlopen)
+
+    with pytest.raises(EcmResponseError, match="document_id"):
+        upload_document(
+            client=EcmClient(base_url="https://ecm.example.com"),
+            file_info=FileInfo(
+                name="invoice.xlsx",
+                path=str(source_path),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            metadata={"folder": "invoices"},
+        )
