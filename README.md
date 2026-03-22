@@ -72,3 +72,12 @@ CLI 엔트리포인트는 다음과 같습니다.
 - `app-dev`
 - `app-test`
 - `app-docs`
+
+## 배포
+
+PyPI 배포용 GitHub Actions workflow는 `.github/workflows/publish-pypi.yml`에 있습니다.
+
+- 기본 동작은 `push` 시 자동 배포가 아니라 `release published` 또는 수동 실행입니다.
+- release 기반 배포는 `main`을 대상으로 만든 release일 때만 publish 합니다.
+- publish job은 먼저 패키지를 build 하고 `twine check`로 검증한 뒤 PyPI에 업로드합니다.
+- 인증은 GitHub Actions trusted publishing 기준입니다. PyPI 프로젝트에서 GitHub repository와 environment `pypi`를 연결해 두어야 합니다.
