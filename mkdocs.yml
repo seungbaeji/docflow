@@ -1,0 +1,28 @@
+site_name: docflow-agent
+site_description: Source-driven document-processing framework
+site_url: https://seungbaeji.github.io/docflow/
+repo_url: https://github.com/seungbaeji/docflow
+repo_name: seungbaeji/docflow
+
+theme:
+  name: material
+  language: ko
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Source / Unit / Bundle: model.md
+      - Editing And Automation: editing.md
+  - Integrations:
+      - ECM: ecm.md
+      - LLM: llm.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - fenced_code
+  - tables
