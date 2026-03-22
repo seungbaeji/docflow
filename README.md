@@ -93,6 +93,19 @@ CLI 엔트리포인트는 다음과 같습니다.
 - 애플리케이션 자동화는 파일 레벨 처리로 해결할 수 없을 때만 사용
 - workbook, worksheet, COM 객체, UI automation 객체는 outbound 밖으로 나오지 않음
 
+## 테스트 전략
+
+이 프로젝트는 `inbound`나 `outbound`를 위해 별도의 abstract adapter interface를 먼저 만들지 않습니다. 대신 실제 모듈을 직접 호출하고, 필요한 경계는 함수 호출 지점에서 `monkeypatch`, fake object, `tmp_path` 같은 테스트 도구로 제어합니다.
+
+- `core`: 순수 함수 중심으로 직접 unit test
+- `usecases`: outbound 호출 지점을 `monkeypatch`로 바꿔 orchestration 검증
+- `outbound`: fake response와 로컬 파일 기반 integration test
+- `inbound`: 가능한 얇게 유지하고 usecase 호출과 error translation만 검증
+
+이 접근은 provider abstraction보다 문서 해석과 business rule에 복잡성이 집중된 현재 구조에 더 잘 맞습니다.
+
+자세한 설명은 [`docs/testing.md`](docs/testing.md)에 정리했습니다.
+
 ## 배포
 
 PyPI 배포용 GitHub Actions workflow는 `.github/workflows/publish-pypi.yml`에 있습니다.

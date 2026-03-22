@@ -30,3 +30,4 @@ source -> parse -> unit -> category -> combine -> analyze -> rules -> edit
 - `editing.md`: edit intent와 document automation 경계 설명
 - `ecm.md`: 범용 ECM 연동 방식과 `crypto/search/download/upload` 설명
 - `llm.md`: Agent에서 사용하는 LLM outbound 구성과 설정 설명
+- `testing.md`: abstract adapter 없이 테스트하는 방법 설명
