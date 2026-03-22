@@ -3,7 +3,6 @@ import json
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import SecretStr
 
 from docflow_agent.errors import UnsupportedLlmProviderError
 from docflow_agent.settings import Settings, get_settings
@@ -33,11 +32,7 @@ def build_llm_client(settings: Settings | None = None) -> LlmClient:
             ChatOpenAI(
                 model=active_settings.llm_model,
                 temperature=active_settings.llm_temperature,
-                api_key=(
-                    SecretStr(active_settings.llm_api_key)
-                    if active_settings.llm_api_key is not None
-                    else None
-                ),
+                api_key=active_settings.llm_api_key,
             )
         )
 

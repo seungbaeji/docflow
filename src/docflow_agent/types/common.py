@@ -10,9 +10,9 @@ class FileInfo:
 
 @dataclass(frozen=True)
 class EcmAuth:
-    api_key: str
-    api_secret: str
-    access_token: str | None = None
+    api_key: str = field(repr=False)
+    api_secret: str = field(repr=False)
+    access_token: str | None = field(default=None, repr=False)
     tenant_id: str | None = None
 
 

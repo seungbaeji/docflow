@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     llm_provider: str = "stub"
     llm_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.0
-    llm_api_key: str | None = None
+    llm_api_key: SecretStr | None = None
 
     model_config = SettingsConfigDict(
         env_prefix="DOCFLOW_AGENT_",

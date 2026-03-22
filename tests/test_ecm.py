@@ -191,3 +191,19 @@ def test_upload_document_requires_document_id(monkeypatch: MonkeyPatch, tmp_path
             ),
             metadata={"folder": "invoices"},
         )
+
+
+def test_ecm_auth_repr_redacts_credentials() -> None:
+    auth = EcmAuth(
+        api_key="key-123",
+        api_secret="secret-456",
+        access_token="token-789",
+        tenant_id="tenant-a",
+    )
+
+    rendered = repr(auth)
+
+    assert "key-123" not in rendered
+    assert "secret-456" not in rendered
+    assert "token-789" not in rendered
+    assert "tenant-a" in rendered

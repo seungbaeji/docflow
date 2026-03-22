@@ -1,4 +1,5 @@
 import pytest
+from pydantic import SecretStr
 
 from docflow_agent.errors import UnsupportedLlmProviderError
 from docflow_agent.outbound.llm import LlmClient, ask_document_question, summarize_document
@@ -41,6 +42,13 @@ def test_settings_defaults_stub_provider() -> None:
 
     assert settings.llm_provider == "stub"
     assert settings.llm_temperature == 0.0
+
+
+def test_settings_wraps_llm_api_key_as_secret() -> None:
+    settings = Settings.model_validate({"llm_api_key": "top-secret"})
+
+    assert isinstance(settings.llm_api_key, SecretStr)
+    assert settings.llm_api_key.get_secret_value() == "top-secret"
 
 
 def test_build_llm_client_raises_for_unsupported_provider() -> None:
