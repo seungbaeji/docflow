@@ -3,6 +3,7 @@ from dataclasses import asdict
 from docflow_agent.core.analyze.invoice import analyze_invoice_bundle
 from docflow_agent.core.category.invoice import categorize_excel_units
 from docflow_agent.core.combine.invoice import combine_invoice_units
+from docflow_agent.core.edit.invoice import build_invoice_edit_intents
 from docflow_agent.core.parse.excel import parse_excel_units
 from docflow_agent.core.rules.accounting import validate_accounting_rule
 from docflow_agent.core.rules.invoice import apply_invoice_rule
@@ -29,6 +30,7 @@ def process_source(source_ref: SourceRef) -> ProcessResult:
     bundle = combine_invoice_units(source=source, units=units, category=category)
     bundle = apply_invoice_rule(bundle)
     analysis = analyze_invoice_bundle(bundle)
+    edit_intents = build_invoice_edit_intents(bundle)
     validation_errors = validate_accounting_rule(bundle)
 
     return ProcessResult(
@@ -39,6 +41,7 @@ def process_source(source_ref: SourceRef) -> ProcessResult:
         bundle_data={
             "bundle": asdict(bundle),
             "analysis": analysis,
+            "edit_intents": [asdict(intent) for intent in edit_intents],
         },
         messages=validation_errors or ["Source processed successfully."],
     )

@@ -35,6 +35,7 @@ Outbound must NOT call core.
 ## Layers
 
 ### inbound/
+
 Entry points only:
 - FastAPI
 - Streamlit
@@ -48,6 +49,7 @@ Rules:
 ---
 
 ### usecases/
+
 Orchestration layer.
 
 Responsibilities:
@@ -60,6 +62,7 @@ Rules:
 - no business logic
 - no parsing logic
 - no direct DB/ECM logic
+- must not depend on file formats or automation tools
 
 ---
 
@@ -83,7 +86,7 @@ Combine multiple units into business bundles
 Perform analysis (aggregation, matching, etc.)
 
 #### edit/
-Apply modifications to structured data
+Produce structured edit intents (no file or UI logic)
 
 #### rules/
 Business rules (accounting, invoice, settlement, validation)
@@ -91,6 +94,8 @@ Business rules (accounting, invoice, settlement, validation)
 Rules:
 - core must not call outbound
 - core operates on structured data only
+- core must not depend on Excel, files, or UI automation
+- core must not know how edits are applied
 
 ---
 
@@ -106,21 +111,28 @@ Includes:
 - OCR
 - LLM
 - database
+- document automation (Excel, RPA, COM)
 
 Responsibilities:
 - fetch/persist data
 - convert structured data to bytes/files
 - convert external responses to typed structures
 - load sources from ECM, mail, SAP/API, files, or other external systems
-- convert files, bytes, and external responses into typed source or external structures
+- convert files, bytes, and external responses into typed structures
+- apply edit intents to documents
+- execute application-level automation when required (Excel, RPA, COM)
+- manage external application sessions and execution lifecycle
 
 Rules:
 - no business logic
 - no classification
 - no rules
 - must not import core
+- must encapsulate all file libraries and automation tools
 
 ---
+
+## Types
 
 ### types/
 
@@ -131,7 +143,8 @@ Includes:
 - parsed structures
 - units
 - bundles
-- db records when persistence is introduced
+- edit intents
+- db records (when needed)
 - results
 
 Rules:
@@ -140,7 +153,7 @@ Rules:
 - allow multiple explicit types
 - allow nested structures
 - avoid unnecessary abstraction
-- imports between types modules are allowed only when they remain acyclic
+- imports between types modules must remain acyclic
 
 ---
 
@@ -168,16 +181,40 @@ Forbidden:
 - core → core, types
 - outbound → outbound, types
 - types → (no imports from other layers)
-- types → types is allowed only when it does not create circular references
+- types → types only if acyclic
 - shared errors may live in root `errors.py`
-- same-layer imports are allowed only when they remain acyclic
-- circular imports are not allowed in any layer
+- circular imports are not allowed
 
 ---
 
 ## Data Flow
 
-source → parse → unit → category → combine → analyze → rules
+source → parse → unit → category → combine → analyze → rules → edit
+
+---
+
+## Document Editing / Automation
+
+- core must produce structured edit intents only
+- outbound must apply edit intents to documents
+- file libraries (e.g. openpyxl) must stay in outbound
+- automation tools (Excel COM, RPA) must stay in outbound
+- workbook, worksheet, or UI automation objects must not escape outbound
+- usecases must not depend on file or automation implementation details
+
+Execution rules:
+- prefer file-level processing (e.g. openpyxl) by default
+- use application-level automation (Excel, RPA) only when required
+- outbound is responsible for choosing execution strategy
+
+Automation responsibilities (outbound):
+- manage application sessions (start, reuse, terminate)
+- handle file locks and concurrent access
+- handle timeouts and retries
+- handle popups or blocking states
+- ensure document save correctness
+- optionally verify results after write (read-back validation)
+- trigger recalculation when needed
 
 ---
 
@@ -220,17 +257,18 @@ source → parse → unit → category → combine → analyze → rules
 - keep modules small
 - avoid generic names (logic, manager, util)
 - use explicit names
-- keep shared custom errors in root `errors.py` until growth justifies subpackages
+- keep shared custom errors in root `errors.py`
+
+---
 
 ## Error Rules
 
 - shared custom errors may live in root `errors.py`
 - core raises business errors
-- raise integration errors from `outbound`
-- usecases may propagate existing errors and may raise orchestration-specific errors only when the failure is about usecase flow itself
-- do not define custom errors inside `inbound`
-- `inbound` must translate custom errors into HTTP/UI/CLI/agent-friendly outputs
-- if errors grow significantly, split root `errors.py` into subpackages later
+- outbound raises integration errors (file, automation, external systems)
+- usecases may propagate errors or raise orchestration-specific errors
+- inbound translates errors into user-friendly outputs
+- do not define custom errors inside inbound
 
 ---
 
@@ -243,15 +281,19 @@ source → parse → unit → category → combine → analyze → rules
 - parse
 - category
 - combine
+- edit
 - usecases
 
 ### Integration
 - outbound modules
+- file handlers
+- document automation (RPA, Excel)
 
 Rules:
 - must run locally
 - no real external systems
 - use fixtures or monkeypatch
+- automation tests may be optional if environment-dependent
 
 ---
 
@@ -261,9 +303,12 @@ Rules:
 2. parse source
 3. categorize units
 4. combine if needed
-5. apply rules
-6. orchestrate in usecase
-7. test
+5. analyze combined bundles
+6. apply rules
+7. produce edit intents
+8. orchestrate in usecase
+9. apply edits via outbound
+10. test
 
 ---
 
