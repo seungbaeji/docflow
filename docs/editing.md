@@ -8,7 +8,7 @@
 - `outbound`는 그 변경을 실제 파일이나 애플리케이션에 적용한다
 - `usecases`는 edit intent 생성과 실행 시점을 오케스트레이션한다
 
-즉, core는 `ChangeCell`, `InsertSheet`, `RecalculateWorkbook` 같은 구조화된 edit intent를 만들고, outbound는 이를 openpyxl, Excel COM, 또는 RPA로 실행합니다.
+즉, core는 `CellValueEditIntent`, `InsertSheetEditIntent`, `RecalculateWorkbookEditIntent`, `SaveDocumentEditIntent` 같은 구조화된 edit intent를 만들고, outbound는 이를 openpyxl, Excel COM, 또는 RPA로 실행합니다.
 
 ## 실행 전략
 
