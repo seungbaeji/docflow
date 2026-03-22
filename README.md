@@ -43,7 +43,9 @@ src/docflow_agent/
     edit/
     rules/
   outbound/
+    document_automation.py
   types/
+    edit.py
 ```
 
 현재 구현된 최소 흐름은 Excel source를 읽어 sheet unit으로 파싱하고, invoice category를 식별한 뒤 invoice bundle로 결합하고 accounting rule을 검증하는 흐름입니다.

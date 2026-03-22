@@ -23,8 +23,10 @@ def test_process_source_orchestrates_excel_invoice_flow() -> None:
     assert result.unit_count == 3
     bundle = cast(dict[str, object], result.bundle_data["bundle"])
     analysis = cast(dict[str, object], result.bundle_data["analysis"])
+    edit_intents = cast(list[dict[str, object]], result.bundle_data["edit_intents"])
     assert bundle["invoice_number"] == "INV-001"
     assert analysis["unit_names"] == ["Invoice", "LineItems", "Summary"]
+    assert edit_intents == [{"sheet_name": "Summary", "cell_ref": "B2", "value": "INV-001"}]
     assert result.messages == ["Source processed successfully."]
 
 
