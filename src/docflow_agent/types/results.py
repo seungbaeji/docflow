@@ -3,7 +3,9 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class ProcessResult:
-    document_type: str
+    source_kind: str
+    category: str
     success: bool
-    parsed_data: dict[str, object] = field(default_factory=dict)
+    unit_count: int = 0
+    bundle_data: dict[str, object] = field(default_factory=dict)
     messages: list[str] = field(default_factory=list)

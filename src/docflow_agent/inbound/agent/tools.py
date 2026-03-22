@@ -1,16 +1,30 @@
 from langchain_core.tools import tool
 
-from docflow_agent.types.common import FileInfo
-from docflow_agent.usecases.process_document import process_document
+from docflow_agent.types.source import SourceRef
+from docflow_agent.usecases.process_source import process_source
 
 
 @tool
-def process_document_tool(name: str, path: str, content_type: str) -> dict[str, object]:
-    """Process a document through the usecase."""
-    result = process_document(FileInfo(name=name, path=path, content_type=content_type))
+def process_source_tool(
+    name: str,
+    location: str,
+    content_type: str,
+    source_system: str = "ecm",
+) -> dict[str, object]:
+    """Process a source through the usecase."""
+    result = process_source(
+        SourceRef(
+            name=name,
+            location=location,
+            content_type=content_type,
+            source_system=source_system,
+        )
+    )
     return {
-        "document_type": result.document_type,
+        "source_kind": result.source_kind,
+        "category": result.category,
         "success": result.success,
-        "parsed_data": result.parsed_data,
+        "unit_count": result.unit_count,
+        "bundle_data": result.bundle_data,
         "messages": result.messages,
     }

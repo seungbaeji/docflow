@@ -1,30 +1,38 @@
 import streamlit as st
 
-from docflow_agent.types.common import FileInfo
-from docflow_agent.usecases.process_document import process_document
+from docflow_agent.errors import DocflowError
+from docflow_agent.types.source import SourceRef
+from docflow_agent.usecases.process_source import process_source
 
 
 def main() -> None:
-    st.title("Document Processing Demo")
-    uploaded_file = st.file_uploader("Upload an Excel invoice", type=["xlsx", "xls"])
+    st.title("Source Processing Demo")
+    uploaded_file = st.file_uploader("Upload an Excel source", type=["xlsx", "xls"])
 
     if uploaded_file is None:
         return
 
-    result = process_document(
-        FileInfo(
-            name=uploaded_file.name,
-            path=uploaded_file.name,
-            content_type=uploaded_file.type
-            or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    try:
+        result = process_source(
+            SourceRef(
+                name=uploaded_file.name,
+                location=uploaded_file.name,
+                content_type=uploaded_file.type
+                or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                source_system="upload",
+            )
         )
-    )
+    except DocflowError as exc:
+        st.error(str(exc))
+        return
 
     st.json(
         {
-            "document_type": result.document_type,
+            "source_kind": result.source_kind,
+            "category": result.category,
             "success": result.success,
-            "parsed_data": result.parsed_data,
+            "unit_count": result.unit_count,
+            "bundle_data": result.bundle_data,
             "messages": result.messages,
         }
     )
