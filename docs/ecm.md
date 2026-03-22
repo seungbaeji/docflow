@@ -2,7 +2,7 @@
 
 `src/docflow_agent/outbound/ecm.py`는 특정 벤더 SDK에 묶이지 않는 범용 ECM HTTP 클라이언트를 제공합니다.
 
-ECM은 이 프로젝트에서 source를 가져오거나 결과 파일을 다시 저장하는 outbound 역할을 맡습니다. business category 판단이나 bundle 조합은 여기서 하지 않습니다.
+ECM은 이 프로젝트에서 source를 가져오거나 결과 파일을 다시 저장하는 outbound 역할을 맡습니다. business category 판단, bundle 조합, edit intent 생성은 여기서 하지 않습니다.
 
 ## 제공 기능
 
@@ -13,6 +13,14 @@ ECM은 이 프로젝트에서 source를 가져오거나 결과 파일을 다시 
 - `download_document`: 문서 다운로드 후 로컬 저장
 - `upload_document`: 로컬 파일 업로드
 - `fetch_from_ecm`: 다운로드 기능을 감싼 단순 helper
+
+## 역할 경계
+
+- `core`: 어떤 문서를 찾아야 하는지, 어떤 수정이 필요한지 판단
+- `usecases`: ECM 검색/다운로드/업로드 시점 orchestration
+- `outbound/ecm`: 실제 HTTP 요청, 응답 파싱, 파일 저장/업로드 실행
+
+ECM은 문서 수정의 실행 결과를 다시 저장하는 용도로도 사용할 수 있지만, 수정 규칙 자체를 알면 안 됩니다.
 
 ## 핵심 타입
 

@@ -8,6 +8,7 @@
 - 로컬 테스트에서는 stub 모델로 동작
 - 운영 환경에서는 provider 설정만 바꿔 실제 모델로 연결
 - usecase가 필요할 때만 호출되고 core는 LLM에 의존하지 않음
+- 문서 해석 보조는 가능하지만 business rule의 source of truth가 되지 않음
 
 ## 제공 기능
 
@@ -22,9 +23,17 @@
 - `DOCFLOW_AGENT_LLM_PROVIDER`: `stub` 또는 `openai`
 - `DOCFLOW_AGENT_LLM_MODEL`: 모델 이름
 - `DOCFLOW_AGENT_LLM_TEMPERATURE`: temperature
-- `DOCFLOW_AGENT_LLM_API_KEY`: provider API key
+- `DOCFLOW_AGENT_LLM_API_KEY`: provider API key (`openai`일 때만 필요)
 
-기본값은 `stub`이며, 외부 서비스 없이도 로컬에서 실행됩니다.
+기본값은 `stub`이며, 외부 서비스 없이도 로컬에서 실행됩니다. `DOCFLOW_AGENT_LLM_PROVIDER=openai`를 사용할 때만 API key가 필요합니다.
+
+## 역할 경계
+
+- `core`: category, analyze, rules 같은 결정 로직
+- `usecases`: LLM 호출 여부 결정
+- `outbound/llm`: 실제 provider 연결과 메시지 호출
+
+LLM은 보조 해석이나 설명에 사용할 수 있지만, 회계 규칙이나 확정 판정 로직은 여전히 core에 있어야 합니다.
 
 ## 사용 예시
 
