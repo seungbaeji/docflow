@@ -1,14 +1,16 @@
 [project]
 name = "docflow-agent"
 version = "0.1.0"
-description = "Minimal document-processing service skeleton for local development"
+description = "Source-driven document-processing framework for local development"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115.0",
   "streamlit>=1.44.0",
   "langchain>=0.3.0",
+  "langchain-openai>=0.3.0",
   "langgraph>=0.2.0",
+  "pydantic-settings>=2.6.0",
 ]
 
 [project.optional-dependencies]
