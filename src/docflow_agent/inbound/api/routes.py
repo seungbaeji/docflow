@@ -1,30 +1,52 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from docflow_agent.types.common import FileInfo
-from docflow_agent.usecases.process_document import process_document
+from docflow_agent.errors import (
+    DocflowError,
+    EcmRequestError,
+    EcmResponseError,
+    MailIntegrationError,
+    UnsupportedCategoryError,
+    UnsupportedLlmProviderError,
+    UnsupportedSourceKindError,
+)
+from docflow_agent.types.source import SourceRef
+from docflow_agent.usecases.process_source import process_source
 
 router = APIRouter()
 
 
 class ProcessRequest(BaseModel):
-    name: str
-    path: str
+    source_name: str
+    source_location: str
+    source_system: str = "ecm"
     content_type: str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 @router.post("/process")
 def process(request: ProcessRequest) -> dict[str, object]:
-    result = process_document(
-        FileInfo(
-            name=request.name,
-            path=request.path,
-            content_type=request.content_type,
+    try:
+        result = process_source(
+            SourceRef(
+                name=request.source_name,
+                location=request.source_location,
+                content_type=request.content_type,
+                source_system=request.source_system,
+            )
         )
-    )
+    except (UnsupportedSourceKindError, UnsupportedCategoryError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (EcmRequestError, EcmResponseError, MailIntegrationError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except UnsupportedLlmProviderError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except DocflowError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {
-        "document_type": result.document_type,
+        "source_kind": result.source_kind,
+        "category": result.category,
         "success": result.success,
-        "parsed_data": result.parsed_data,
+        "unit_count": result.unit_count,
+        "bundle_data": result.bundle_data,
         "messages": result.messages,
     }
