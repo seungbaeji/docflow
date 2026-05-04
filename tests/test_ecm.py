@@ -7,8 +7,8 @@ from urllib.request import Request
 import pytest
 from pytest import MonkeyPatch
 
-from docflow_agent.outbound import ecm
-from docflow_agent.outbound.ecm import (
+from docflow_agent.outbound.external import ecm
+from docflow_agent.outbound.external.ecm import (
     EcmClient,
     compute_sha256_digest,
     create_hmac_signature,

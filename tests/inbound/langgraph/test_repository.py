@@ -1,6 +1,6 @@
 import pytest
 
-from docflow_agent.outbound.repositories.in_memory_artifact_repository import (
+from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
 
@@ -26,4 +26,3 @@ def test_repository_find_filters_by_metadata() -> None:
     repository.save("unit", {"name": "sheet-2"}, metadata={"stage": "categorized"})
 
     assert repository.find("unit", {"stage": "parsed"}) == [matching_ref]
-

@@ -21,7 +21,7 @@ from docflow_agent.inbound.langgraph.nodes import (
     unknown_node,
 )
 from docflow_agent.inbound.langgraph.state import WorkflowState
-from docflow_agent.outbound.repositories.in_memory_artifact_repository import (
+from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
 from docflow_agent.ports.repositories import ArtifactRepository
@@ -123,4 +123,3 @@ def create_document_workflow(
         usecases=workflow_usecases,
         artifact_repository=repository,
     )
-

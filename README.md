@@ -16,6 +16,8 @@ usecases -> outbound
 - `usecases`: 소스 조회, core 호출, outbound 호출, 결과 조합, 저장/전달 orchestration
 - `core`: source kind 판단, unit 파싱, category 판단, bundle 결합, 분석, 규칙, edit intent 생성
 - `outbound`: ECM, files, mail, SAP, OCR, LLM, DB, Excel automation, RPA, COM 같은 외부 연동과 실행
+  - `outbound/external`: ECM, SAP, mail, OCR, storage, DB, LLM 같은 외부 시스템 연동
+  - `outbound/testing`: in-memory repository 같은 테스트/로컬 개발용 어댑터
 - `types`: source, unit, bundle, external record, edit intent, result 같은 실데이터 구조
 
 핵심 개념도 바뀌었습니다.

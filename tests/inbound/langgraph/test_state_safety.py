@@ -1,7 +1,7 @@
 from typing import Any
 
 from docflow_agent.inbound.langgraph.workflow import create_document_workflow
-from docflow_agent.outbound.repositories.in_memory_artifact_repository import (
+from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
@@ -39,4 +39,3 @@ def test_workflow_state_contains_only_small_control_data_and_refs() -> None:
     forbidden_keys = {"workbook", "worksheet", "dataframe", "rows", "bytes", "attachments", "mail_body"}
     assert forbidden_keys.isdisjoint(state.keys())
     _assert_no_unsafe_payloads(state)
-

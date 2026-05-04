@@ -1,5 +1,5 @@
 from docflow_agent.inbound.langgraph.workflow import create_document_workflow
-from docflow_agent.outbound.repositories.in_memory_artifact_repository import (
+from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
@@ -21,4 +21,3 @@ def test_prompt_routes_to_document_process_and_creates_artifact_refs() -> None:
     assert state["output_refs"]
     assert state["output_refs"][-1]["kind"] == "analysis"
     assert state["result"]
-

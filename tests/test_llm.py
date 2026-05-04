@@ -9,7 +9,7 @@ from docflow_agent.errors import (
     MissingLlmDependencyError,
     UnsupportedLlmProviderError,
 )
-from docflow_agent.outbound.llm import (
+from docflow_agent.outbound.external.llm import (
     LlmClient,
     ask_document_question,
     build_llm_client,
@@ -109,7 +109,7 @@ def test_build_llm_client_raises_for_missing_dependency(monkeypatch: pytest.Monk
             raise ImportError("missing dependency")
         return original_import_module(name)
 
-    monkeypatch.setattr("docflow_agent.outbound.llm.import_module", fake_import_module)
+    monkeypatch.setattr("docflow_agent.outbound.external.llm.import_module", fake_import_module)
 
     with pytest.raises(
         MissingLlmDependencyError,

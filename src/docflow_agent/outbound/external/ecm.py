@@ -5,8 +5,8 @@ import json
 from email.message import Message
 from pathlib import Path
 from typing import Protocol, cast
-from urllib.parse import quote, urljoin
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
 from docflow_agent.errors import EcmRequestError, EcmResponseError
@@ -219,34 +219,40 @@ def _build_headers(
 
     if extra_headers:
         headers.update(extra_headers)
+
     return headers
+
+
+def _parse_ecm_document(payload: dict[str, object]) -> EcmDocument:
+    document_id = payload.get("document_id")
+    if not isinstance(document_id, str) or not document_id:
+        raise EcmResponseError(path="/documents", reason="document_id is required")
+
+    name = payload.get("name")
+    content_type = payload.get("content_type")
+    metadata = payload.get("metadata")
+
+    return EcmDocument(
+        document_id=document_id,
+        name=name if isinstance(name, str) else document_id,
+        content_type=content_type if isinstance(content_type, str) else "application/octet-stream",
+        metadata=metadata if isinstance(metadata, dict) else {},
+    )
 
 
 def _extract_filename(headers: Message) -> str | None:
     content_disposition = headers.get("Content-Disposition")
     if not content_disposition:
         return None
-    marker = "filename="
-    if marker not in content_disposition:
-        return None
-    return content_disposition.split(marker, maxsplit=1)[1].strip('"')
+    for part in content_disposition.split(";"):
+        item = part.strip()
+        if item.lower().startswith("filename="):
+            return item.split("=", 1)[1].strip('"')
+    return None
 
 
 def _safe_filename(file_name: str | None) -> str | None:
     if not file_name:
         return None
-    sanitized = Path(file_name).name
-    if sanitized in {"", ".", ".."}:
-        return None
-    return sanitized
+    return Path(file_name).name or None
 
-
-def _parse_ecm_document(item: dict[str, object]) -> EcmDocument:
-    raw_metadata = item.get("metadata", {})
-    metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
-    return EcmDocument(
-        document_id=str(item.get("document_id", "")),
-        name=str(item.get("name", "")),
-        content_type=str(item.get("content_type", "application/octet-stream")),
-        metadata=cast(dict[str, object], metadata),
-    )

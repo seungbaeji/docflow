@@ -1,5 +1,5 @@
 from docflow_agent.inbound.langgraph.workflow import create_document_workflow
-from docflow_agent.outbound.repositories.in_memory_artifact_repository import (
+from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
@@ -75,4 +75,3 @@ def test_document_to_mail_rejects_mail_safely() -> None:
     assert state["current_step"] == "reject_send_mail"
     assert state["result"] == "User rejected mail sending."
     assert state["output_refs"][-1]["kind"] == "result"
-

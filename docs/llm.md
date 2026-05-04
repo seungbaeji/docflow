@@ -1,6 +1,6 @@
 # LLM outbound
 
-`src/docflow_agent/outbound/llm.py`는 Agent가 사용할 LLM 접근을 outbound 레이어에 격리합니다.
+`src/docflow_agent/outbound/external/llm.py`는 Agent가 사용할 LLM 접근을 outbound 레이어에 격리합니다.
 
 ## 목적
 
@@ -45,14 +45,14 @@ API key는 환경변수나 `pydantic-settings` 입력으로만 주입합니다. 
 
 - `core`: category, analyze, rules 같은 결정 로직
 - `usecases`: LLM 호출 여부 결정
-- `outbound/llm`: 실제 provider 연결과 메시지 호출
+- `outbound/external/llm`: 실제 provider 연결과 메시지 호출
 
 LLM은 보조 해석이나 설명에 사용할 수 있지만, 회계 규칙이나 확정 판정 로직은 여전히 core에 있어야 합니다.
 
 ## 사용 예시
 
 ```python
-from docflow_agent.outbound.llm import ask_document_question, summarize_document
+from docflow_agent.outbound.external.llm import ask_document_question, summarize_document
 
 summary = summarize_document(
     {

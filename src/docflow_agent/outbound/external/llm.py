@@ -131,3 +131,4 @@ def _message_to_text(content: str | list[str | dict[str, object]]) -> str:
         if isinstance(text, str):
             parts.append(text)
     return "\n".join(parts)
+
