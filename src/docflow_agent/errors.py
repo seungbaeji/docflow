@@ -58,3 +58,18 @@ class UnsupportedLlmProviderError(LlmError):
     def __init__(self, provider: str) -> None:
         super().__init__(f"Unsupported LLM provider: {provider}")
         self.provider = provider
+
+
+class MissingLlmDependencyError(LlmError):
+    def __init__(self, provider: str, package_name: str) -> None:
+        super().__init__(
+            f"LLM provider '{provider}' requires optional dependency '{package_name}'"
+        )
+        self.provider = provider
+        self.package_name = package_name
+
+
+class MissingLlmApiKeyError(LlmError):
+    def __init__(self, provider: str) -> None:
+        super().__init__(f"Missing API key for LLM provider: {provider}")
+        self.provider = provider

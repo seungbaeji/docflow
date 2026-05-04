@@ -18,14 +18,28 @@
 
 ## 설정
 
-환경변수 prefix는 `DOCFLOW_AGENT_`입니다.
+환경변수 prefix는 `DOCFLOW_AGENT_`입니다. 이제 설정은 nested `BaseModel` 구조를 사용하므로 환경변수도 `__` 구분자를 사용합니다.
 
-- `DOCFLOW_AGENT_LLM_PROVIDER`: `stub` 또는 `openai`
-- `DOCFLOW_AGENT_LLM_MODEL`: 모델 이름
-- `DOCFLOW_AGENT_LLM_TEMPERATURE`: temperature
-- `DOCFLOW_AGENT_LLM_API_KEY`: provider API key (`openai`일 때만 필요)
+- `DOCFLOW_AGENT_APP__NAME`
+- `DOCFLOW_AGENT_APP__TITLE`
+- `DOCFLOW_AGENT_APP__ENV`
+- `DOCFLOW_AGENT_APP__DEBUG`
+- `DOCFLOW_AGENT_API__HOST`
+- `DOCFLOW_AGENT_API__PORT`
+- `DOCFLOW_AGENT_API__RELOAD`
+- `DOCFLOW_AGENT_LLM__PROVIDER`
+- `DOCFLOW_AGENT_LLM__MODEL`
+- `DOCFLOW_AGENT_LLM__TEMPERATURE`
+- `DOCFLOW_AGENT_LLM__BASE_URL`
+- `DOCFLOW_AGENT_LLM__TIMEOUT_SECONDS`
+- `DOCFLOW_AGENT_LLM__MAX_RETRIES`
+- `DOCFLOW_AGENT_LLM__API_KEY`
 
-기본값은 `stub`이며, 외부 서비스 없이도 로컬에서 실행됩니다. `DOCFLOW_AGENT_LLM_PROVIDER=openai`를 사용할 때만 API key가 필요합니다.
+기본값은 `stub`이며, 외부 서비스 없이도 로컬에서 실행됩니다. `openai`와 `gemini`는 모두 API key가 필요합니다.
+
+API key는 환경변수나 `pydantic-settings` 입력으로만 주입합니다. 런타임에 임시 파일을 fallback으로 읽지는 않습니다.
+
+루트의 [.env.example](/Users/seungbaeji/Workspace/posco/docflow/.env.example:1)에 기본 예시를 추가해 두었습니다.
 
 ## 역할 경계
 
@@ -54,3 +68,9 @@ answer = ask_document_question(
     payload={"invoice_number": "INV-001"},
 )
 ```
+
+## provider 메모
+
+- `openai`: `langchain-openai`가 필요합니다.
+- `gemini`: `langchain-google-genai`가 필요합니다.
+- OpenAI 호환 gateway를 쓸 때는 `DOCFLOW_AGENT_LLM__PROVIDER=openai`와 `DOCFLOW_AGENT_LLM__BASE_URL` 조합으로 맞출 수 있습니다.

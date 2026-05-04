@@ -1,10 +1,15 @@
 import json
+from importlib import import_module
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from docflow_agent.errors import UnsupportedLlmProviderError
+from docflow_agent.errors import (
+    MissingLlmApiKeyError,
+    MissingLlmDependencyError,
+    UnsupportedLlmProviderError,
+)
 from docflow_agent.settings import Settings, get_settings
 
 
@@ -15,8 +20,10 @@ class LlmClient:
 
 def build_llm_client(settings: Settings | None = None) -> LlmClient:
     active_settings = settings or get_settings()
+    llm_settings = active_settings.llm
+    api_key = llm_settings.api_key
 
-    if active_settings.llm_provider == "stub":
+    if llm_settings.provider == "stub":
         return LlmClient(
             FakeListChatModel(
                 responses=[
@@ -25,18 +32,44 @@ def build_llm_client(settings: Settings | None = None) -> LlmClient:
             )
         )
 
-    if active_settings.llm_provider == "openai":
-        from langchain_openai import ChatOpenAI
+    if llm_settings.provider == "openai":
+        if api_key is None:
+            raise MissingLlmApiKeyError("openai")
+        try:
+            chat_openai_module = import_module("langchain_openai")
+        except ImportError as exc:
+            raise MissingLlmDependencyError("openai", "langchain-openai") from exc
 
         return LlmClient(
-            ChatOpenAI(
-                model=active_settings.llm_model,
-                temperature=active_settings.llm_temperature,
-                api_key=active_settings.llm_api_key,
+            chat_openai_module.ChatOpenAI(
+                model=llm_settings.model,
+                temperature=llm_settings.temperature,
+                api_key=api_key,
+                base_url=llm_settings.base_url,
+                timeout=llm_settings.timeout_seconds,
+                max_retries=llm_settings.max_retries,
             )
         )
 
-    raise UnsupportedLlmProviderError(active_settings.llm_provider)
+    if llm_settings.provider == "gemini":
+        if api_key is None:
+            raise MissingLlmApiKeyError("gemini")
+        try:
+            google_genai_module = import_module("langchain_google_genai")
+        except ImportError as exc:
+            raise MissingLlmDependencyError("gemini", "langchain-google-genai") from exc
+
+        return LlmClient(
+            google_genai_module.ChatGoogleGenerativeAI(
+                model=llm_settings.model,
+                temperature=llm_settings.temperature,
+                google_api_key=api_key.get_secret_value(),
+                timeout=llm_settings.timeout_seconds,
+                max_retries=llm_settings.max_retries,
+            )
+        )
+
+    raise UnsupportedLlmProviderError(llm_settings.provider)
 
 
 def summarize_document(
