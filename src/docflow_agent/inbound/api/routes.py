@@ -34,9 +34,9 @@ from docflow_agent.types.boundary.api import (
     UploadResponse,
 )
 from docflow_agent.usecases.chat import respond_in_chat
-from docflow_agent.usecases.document_workflow import (
-    DocumentUsecaseBindings,
-    bind_document_usecases,
+from docflow_agent.workflow.document_chat_workflow import (
+    build_document_chat_workflow,
+    invoke_document_chat_workflow,
 )
 from docflow_agent.workflow.document_workflow import (
     create_document_workflow,
@@ -44,6 +44,10 @@ from docflow_agent.workflow.document_workflow import (
     workflow_state_to_response,
 )
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
+from docflow_agent.workflow.document_services import (
+    DocumentWorkflowServices,
+    bind_document_workflow_services,
+)
 from docflow_agent.workflow.nodes import WorkflowRuntime
 from docflow_agent.workflow.tools import (
     bind_document_agent_tools,
@@ -53,8 +57,8 @@ from docflow_agent.workflow.tools import (
 router = APIRouter()
 
 
-def _bind_document_functions(container: AppContainer) -> DocumentUsecaseBindings:
-    return bind_document_usecases(
+def _bind_document_functions(container: AppContainer) -> DocumentWorkflowServices:
+    return bind_document_workflow_services(
         artifact_repository=container.artifact_repository,
         llm_gateway=container.llm_gateway,
         workflow_run_store=container.workflow_run_store,
@@ -192,19 +196,19 @@ async def upload_document(app_request: Request) -> UploadResponse:
     stored_path.write_bytes(raw_file)
 
     document_usecases = _bind_document_functions(container)
-    source_ref_id = document_usecases["register_uploaded_source"](
-        FileInfo(
-            name=file_name,
-            path=str(stored_path.resolve()),
-            content_type=content_type,
-        )
+    upload_id = document_usecases["stage_upload"](
+        file_name,
+        str(stored_path.resolve()),
+        content_type,
+        len(raw_file),
     )
-    container.session_document_store.set_current_source_ref(session_id, source_ref_id)
+    container.session_document_store.set_current_upload_id(session_id, upload_id)
+    container.session_document_store.clear_current_source_ref(session_id)
 
     return UploadResponse(
         session_id=session_id,
+        upload_id=upload_id,
         file_name=file_name,
-        source_ref_id=source_ref_id,
         stored_path=str(stored_path.resolve()),
         content_type=content_type,
         size_bytes=len(raw_file),
@@ -217,9 +221,23 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
         container = app_request.app.state.container
         session_id = request.session_id or str(uuid4())
         current_source_ref = container.session_document_store.get_current_source_ref(session_id)
+        current_upload_id = container.session_document_store.get_current_upload_id(session_id)
         document_usecases = _bind_document_functions(container)
 
-        if current_source_ref is not None and _requires_document_agent(request.message):
+        if (current_source_ref is not None or current_upload_id is not None) and _requires_document_agent(
+            request.message
+        ):
+            prep_workflow = build_document_chat_workflow(
+                services=document_usecases,
+                artifact_repository=container.artifact_repository,
+                session_document_store=container.session_document_store,
+            )
+            prep_state = invoke_document_chat_workflow(
+                workflow=prep_workflow,
+                session_id=session_id,
+                message=request.message,
+            )
+            source_ref_id = prep_state["source_ref_id"]
             document_agent_runtime = DocumentAgentRuntime(
                 llm_gateway=container.llm_gateway,
                 tools=bind_document_agent_tools(
@@ -227,7 +245,7 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
                     summarize_source_ref=document_usecases["summarize_source_ref"],
                 ),
                 tool_context=DocumentAgentToolContext(
-                    session_id=session_id,
+                    source_ref_id=source_ref_id,
                 ),
                 runtime_store=container.runtime_store,
                 system_prompt=get_document_agent_system_prompt(),
@@ -236,10 +254,10 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
                 message = document_agent_runtime.run(prompt=request.message).answer
             except DocumentAgentRuntimeError:
                 if _requires_document_processing(request.message):
-                    message = document_usecases["summarize_source_ref"](current_source_ref)
+                    message = document_usecases["summarize_source_ref"](source_ref_id)
                 else:
                     message = document_usecases["answer_question_about_source_ref"](
-                        current_source_ref,
+                        source_ref_id,
                         request.message,
                     )
         else:

@@ -57,8 +57,8 @@ class ChatResponse(BoundaryModel):
 
 class UploadResponse(BoundaryModel):
     session_id: str
+    upload_id: str
     file_name: str
-    source_ref_id: str
     stored_path: str
     content_type: str
     size_bytes: int = Field(ge=0)

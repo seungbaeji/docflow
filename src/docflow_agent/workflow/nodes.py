@@ -5,7 +5,7 @@ from typing import Literal
 from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.ports.rdbms import WorkflowRunStore
 from docflow_agent.types.boundary.external import QueueMessage, WorkflowRunRecord
-from docflow_agent.usecases.document_workflow import DocumentUsecaseBindings
+from docflow_agent.workflow.document_services import DocumentWorkflowServices
 from docflow_agent.workflow.routes import get_human_decision, route_flow
 from docflow_agent.workflow.state import ArtifactKind, ArtifactRef, WorkflowState
 
@@ -80,7 +80,7 @@ def select_flow_node(state: WorkflowState) -> WorkflowState:
     return state
 
 
-def load_source_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+def load_source_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
     source_ref_id = usecases["load_source"](state["user_input"])
     source_ref = _artifact_ref("source", source_ref_id)
     _append_artifact_ref(state, "source_refs", source_ref)
@@ -89,7 +89,7 @@ def load_source_node(state: WorkflowState, usecases: DocumentUsecaseBindings) ->
     return state
 
 
-def parse_units_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+def parse_units_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
     source_ref_id = state["selected_source_ref"]["ref_id"]
     unit_refs = [_artifact_ref("unit", ref_id) for ref_id in usecases["parse_units"](source_ref_id)]
     for unit_ref in unit_refs:
@@ -100,25 +100,22 @@ def parse_units_node(state: WorkflowState, usecases: DocumentUsecaseBindings) ->
     return state
 
 
-def categorize_units_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+def categorize_units_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
     parsed_unit_refs = [
         ref["ref_id"] for ref in state.get("unit_refs", []) if ref["kind"] == "unit"
     ]
     categorized_unit_refs = [
         _artifact_ref("unit", ref_id) for ref_id in usecases["categorize_units"](parsed_unit_refs)
     ]
-    for unit_ref in categorized_unit_refs:
-        _append_artifact_ref(state, "unit_refs", unit_ref)
+    state["categorized_unit_refs"] = categorized_unit_refs
     if categorized_unit_refs:
         state["selected_unit_ref"] = categorized_unit_refs[-1]
     state["current_step"] = "categorize_units"
     return state
 
 
-def combine_bundle_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
-    categorized_unit_ref_ids = [
-        ref["ref_id"] for ref in state.get("unit_refs", [])[-2:] if ref["kind"] == "unit"
-    ]
+def combine_bundle_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
+    categorized_unit_ref_ids = [ref["ref_id"] for ref in state.get("categorized_unit_refs", [])]
     bundle_ref = _artifact_ref("bundle", usecases["combine_bundle"](categorized_unit_ref_ids))
     _append_artifact_ref(state, "bundle_refs", bundle_ref)
     state["selected_bundle_ref"] = bundle_ref
@@ -126,7 +123,7 @@ def combine_bundle_node(state: WorkflowState, usecases: DocumentUsecaseBindings)
     return state
 
 
-def analyze_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+def analyze_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
     bundle_ref_id = state["selected_bundle_ref"]["ref_id"]
     outcome = usecases["analyze"](bundle_ref_id)
     analysis_ref = _artifact_ref("analysis", outcome.ref_id)
@@ -136,7 +133,7 @@ def analyze_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> Wor
     return state
 
 
-def filter_dataset_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+def filter_dataset_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
     bundle_ref_id = state["selected_bundle_ref"]["ref_id"]
     dataset_ref = _artifact_ref("dataset", usecases["filter_dataset"](bundle_ref_id))
     _append_artifact_ref(state, "dataset_refs", dataset_ref)
@@ -144,7 +141,7 @@ def filter_dataset_node(state: WorkflowState, usecases: DocumentUsecaseBindings)
     return state
 
 
-def compose_mail_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+def compose_mail_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
     dataset_ref_id = state["dataset_refs"][-1]["ref_id"]
     draft_ref = _artifact_ref("draft", usecases["compose_mail"](dataset_ref_id))
     _append_artifact_ref(state, "output_refs", draft_ref)
@@ -154,7 +151,7 @@ def compose_mail_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -
 
 def request_send_mail_approval_node(
     state: WorkflowState,
-    usecases: DocumentUsecaseBindings,
+    usecases: DocumentWorkflowServices,
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     del usecases
@@ -201,7 +198,7 @@ def request_send_mail_approval_node(
 
 def send_mail_node(
     state: WorkflowState,
-    usecases: DocumentUsecaseBindings,
+    usecases: DocumentWorkflowServices,
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     draft_ref_id = state["output_refs"][-1]["ref_id"]
@@ -222,7 +219,7 @@ def send_mail_node(
 
 def reject_send_mail_node(
     state: WorkflowState,
-    usecases: DocumentUsecaseBindings,
+    usecases: DocumentWorkflowServices,
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     draft_ref_id = state.get("output_refs", [])[-1]["ref_id"] if state.get("output_refs") else None
@@ -242,7 +239,7 @@ def reject_send_mail_node(
     return state
 
 
-def unknown_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+def unknown_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
     outcome = usecases["handle_unknown"](state["user_input"])
     result_ref = _artifact_ref("result", outcome.ref_id)
     _append_artifact_ref(state, "output_refs", result_ref)

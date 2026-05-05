@@ -8,10 +8,9 @@ from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
-from docflow_agent.outbound.testing.session_context import StoreBackedSessionDocumentStore
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.usecases.document_workflow import bind_document_usecases
+from docflow_agent.workflow.document_services import bind_document_workflow_services
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
 from docflow_agent.workflow.tools import (
     bind_document_agent_tools,
@@ -46,8 +45,7 @@ def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> Pd
 def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> DocumentAgentRuntime:
     repository = InMemoryArtifactRepository()
     runtime_store = InMemoryStore()
-    session_document_store = StoreBackedSessionDocumentStore(store=runtime_store)
-    usecases = bind_document_usecases(
+    usecases = bind_document_workflow_services(
         artifact_repository=repository,
         llm_gateway=llm_gateway,
         pdf_client=OpenDataLoaderPdfClient(),
@@ -55,14 +53,13 @@ def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> Docum
     )
     source_path = tmp_path / "statement.pdf"
     source_path.write_bytes(b"%PDF-1.7 fake")
-    source_ref_id = usecases["register_uploaded_source"](
-        FileInfo(
-            name="statement.pdf",
-            path=str(source_path),
-            content_type="application/pdf",
-        )
+    upload_id = usecases["stage_upload"](
+        "statement.pdf",
+        str(source_path),
+        "application/pdf",
+        len(b"%PDF-1.7 fake"),
     )
-    session_document_store.set_current_source_ref("session-001", source_ref_id)
+    source_ref_id = usecases["source_from_upload"](upload_id)
     return DocumentAgentRuntime(
         llm_gateway=llm_gateway,
         tools=bind_document_agent_tools(
@@ -70,7 +67,7 @@ def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> Docum
             summarize_source_ref=usecases["summarize_source_ref"],
         ),
         tool_context=DocumentAgentToolContext(
-            session_id="session-001",
+            source_ref_id=source_ref_id,
         ),
         runtime_store=runtime_store,
         system_prompt=get_document_agent_system_prompt(),

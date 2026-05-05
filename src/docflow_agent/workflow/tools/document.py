@@ -5,7 +5,6 @@ from typing import Callable
 
 from langchain.tools import BaseTool, ToolRuntime, tool
 
-from docflow_agent.errors import DocumentAgentRuntimeError
 from docflow_agent.types.value.document import DocumentPayload
 from docflow_agent.types.value.document_agent import (
     CurrentDocumentMetadataResult,
@@ -17,7 +16,7 @@ from docflow_agent.types.value.document_agent import (
 
 @dataclass(frozen=True)
 class DocumentAgentToolContext:
-    session_id: str
+    source_ref_id: str
 
 
 def bind_document_agent_tools(
@@ -25,26 +24,12 @@ def bind_document_agent_tools(
     build_document_payload: Callable[[str], DocumentPayload],
     summarize_source_ref: Callable[[str], str],
 ) -> dict[str, BaseTool]:
-    def require_source_ref(runtime: ToolRuntime[DocumentAgentToolContext]) -> str:
-        if runtime.store is None:
-            raise DocumentAgentRuntimeError("no runtime store is available for document tools")
-        item = runtime.store.get(
-            ("session_documents", runtime.context.session_id),
-            "current_source_ref",
-        )
-        if item is None:
-            raise DocumentAgentRuntimeError("no current document is associated with the session")
-        source_ref_id = item.value.get("source_ref_id")
-        if not isinstance(source_ref_id, str):
-            raise DocumentAgentRuntimeError("runtime store returned an invalid source reference")
-        return source_ref_id
-
     @tool
     def get_current_document(
         runtime: ToolRuntime[DocumentAgentToolContext],
     ) -> CurrentDocumentMetadataResult:
         """Return the current uploaded document metadata for the active session."""
-        source_ref_id = require_source_ref(runtime)
+        source_ref_id = runtime.context.source_ref_id
         payload = build_document_payload(source_ref_id)
         return CurrentDocumentMetadataResult(
             source_ref_id=payload.source_ref_id,
@@ -58,7 +43,7 @@ def bind_document_agent_tools(
         runtime: ToolRuntime[DocumentAgentToolContext],
     ) -> CurrentDocumentParseResult:
         """Ensure the current document is parsed and return parsed unit metadata."""
-        source_ref_id = require_source_ref(runtime)
+        source_ref_id = runtime.context.source_ref_id
         payload = build_document_payload(source_ref_id)
         return CurrentDocumentParseResult(
             source_ref_id=payload.source_ref_id,
@@ -73,7 +58,7 @@ def bind_document_agent_tools(
         runtime: ToolRuntime[DocumentAgentToolContext],
     ) -> CurrentDocumentSummaryResult:
         """Return a deterministic summary payload for the current document."""
-        source_ref_id = require_source_ref(runtime)
+        source_ref_id = runtime.context.source_ref_id
         payload = build_document_payload(source_ref_id)
         return CurrentDocumentSummaryResult(
             source_ref_id=payload.source_ref_id,
@@ -91,7 +76,7 @@ def bind_document_agent_tools(
         runtime: ToolRuntime[DocumentAgentToolContext],
     ) -> CurrentDocumentQuestionResult:
         """Return the current document payload for answering a specific question."""
-        source_ref_id = require_source_ref(runtime)
+        source_ref_id = runtime.context.source_ref_id
         payload = build_document_payload(source_ref_id)
         return CurrentDocumentQuestionResult(
             source_ref_id=payload.source_ref_id,

@@ -6,7 +6,7 @@ from typing import Any, cast
 from langgraph.graph import END, START, StateGraph
 
 from docflow_agent.ports.repositories import ArtifactRepository
-from docflow_agent.usecases.document_workflow import DocumentUsecaseBindings
+from docflow_agent.workflow.document_services import DocumentWorkflowServices
 from docflow_agent.workflow.nodes import (
     WorkflowRuntime,
     analyze_node,
@@ -48,7 +48,7 @@ def _route_mail_approval(state: WorkflowState) -> str:
 
 
 def build_document_workflow(
-    usecases: DocumentUsecaseBindings,
+    usecases: DocumentWorkflowServices,
     artifact_repository: ArtifactRepository,
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
@@ -127,7 +127,7 @@ def build_document_workflow(
 
 
 def create_document_workflow(
-    usecases: DocumentUsecaseBindings,
+    usecases: DocumentWorkflowServices,
     artifact_repository: ArtifactRepository,
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
@@ -157,6 +157,7 @@ def workflow_state_to_response(state: WorkflowState) -> dict[str, object]:
         "error": state.get("error"),
         "source_refs": state.get("source_refs", []),
         "unit_refs": state.get("unit_refs", []),
+        "categorized_unit_refs": state.get("categorized_unit_refs", []),
         "bundle_refs": state.get("bundle_refs", []),
         "dataset_refs": state.get("dataset_refs", []),
         "output_refs": state.get("output_refs", []),

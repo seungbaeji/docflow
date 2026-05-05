@@ -9,8 +9,8 @@ from docflow_agent.config.settings import get_settings
 from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.usecases.document_workflow import bind_document_usecases
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
+from docflow_agent.workflow.document_services import bind_document_workflow_services
 from docflow_agent.workflow.tools import (
     bind_document_agent_tools,
     DocumentAgentToolContext,
@@ -51,7 +51,7 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
         pytest.skip("Configure a real llm provider before running the smoke test.")
 
     container = build_container(settings=settings, pdf_parser=_fake_pdf_parser)
-    usecases = bind_document_usecases(
+    usecases = bind_document_workflow_services(
         artifact_repository=container.artifact_repository,
         llm_gateway=container.llm_gateway,
         workflow_run_store=container.workflow_run_store,
@@ -61,13 +61,13 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
     )
     source_path = tmp_path / "statement.pdf"
     source_path.write_bytes(b"%PDF-1.7 fake")
-    source_ref_id = usecases["register_uploaded_source"](
-        FileInfo(
-            name="statement.pdf",
-            path=str(source_path),
-            content_type="application/pdf",
-        )
+    upload_id = usecases["stage_upload"](
+        "statement.pdf",
+        str(source_path),
+        "application/pdf",
+        len(b"%PDF-1.7 fake"),
     )
+    source_ref_id = usecases["source_from_upload"](upload_id)
     container.session_document_store.set_current_source_ref("smoke-session", source_ref_id)
 
     runtime = DocumentAgentRuntime(
@@ -77,7 +77,7 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
             summarize_source_ref=usecases["summarize_source_ref"],
         ),
         tool_context=DocumentAgentToolContext(
-            session_id="smoke-session",
+            source_ref_id=source_ref_id,
         ),
         runtime_store=container.runtime_store,
         system_prompt=get_document_agent_system_prompt(),

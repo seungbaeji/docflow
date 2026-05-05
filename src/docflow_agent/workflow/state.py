@@ -46,6 +46,7 @@ class WorkflowState(TypedDict, total=False):
 
     source_refs: list[ArtifactRef]
     unit_refs: list[ArtifactRef]
+    categorized_unit_refs: list[ArtifactRef]
     bundle_refs: list[ArtifactRef]
     dataset_refs: list[ArtifactRef]
     output_refs: list[ArtifactRef]
@@ -59,4 +60,3 @@ class WorkflowState(TypedDict, total=False):
 
     result: str
     error: str
-

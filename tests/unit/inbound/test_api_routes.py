@@ -161,7 +161,7 @@ def test_upload_route_saves_file_to_configured_directory(tmp_path: Path) -> None
     stored_path = Path(payload["stored_path"])
     assert payload["session_id"] == "session-001"
     assert payload["file_name"] == "invoice.pdf"
-    assert payload["source_ref_id"].startswith("source-")
+    assert payload["upload_id"].startswith("upload-")
     assert payload["content_type"] == "application/pdf"
     assert payload["size_bytes"] == len(b"%PDF-1.7 fake")
     assert stored_path.exists()
