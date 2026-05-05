@@ -1,4 +1,4 @@
-from docflow_agent.inbound.langgraph.workflow import create_document_workflow
+from docflow_agent.workflow.document_workflow import create_document_workflow
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )

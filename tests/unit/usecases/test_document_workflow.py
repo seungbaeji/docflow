@@ -1,5 +1,4 @@
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
-from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
 from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
@@ -62,14 +61,12 @@ def test_compose_mail_uses_llm_gateway_when_available() -> None:
     assert llm_gateway.summarized_payloads
 
 
-def test_send_mail_enqueues_message_and_persists_record() -> None:
+def test_send_mail_persists_record() -> None:
     repository = InMemoryArtifactRepository()
     processing_store = InMemoryProcessingRecordStore()
-    queue = InMemoryWorkflowQueue()
     usecases = RepositoryBackedDocumentUsecases(
         artifact_repository=repository,
         processing_record_store=processing_store,
-        workflow_queue=queue,
     )
 
     draft_ref_id = repository.save(
@@ -82,8 +79,3 @@ def test_send_mail_enqueues_message_and_persists_record() -> None:
 
     record = processing_store.load_processing_record(outcome.ref_id)
     assert record.status == "sent"
-    message = queue.dequeue()
-    assert message is not None
-    assert message.topic == "mail.send"
-    assert message.payload["draft_ref_id"] == draft_ref_id
-

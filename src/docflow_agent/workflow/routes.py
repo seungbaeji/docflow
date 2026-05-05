@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from docflow_agent.inbound.langgraph.state import FlowName, HumanDecision, WorkflowState
+from docflow_agent.workflow.state import FlowName, HumanDecision, WorkflowState
 
 _DOCUMENT_KEYWORDS = ("excel", "엑셀", "document", "문서", "pdf", "image", "이미지", "settlement")
 _MAIL_KEYWORDS = ("mail", "메일", "email", "send", "보내")

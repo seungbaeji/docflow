@@ -3,11 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from docflow_agent.ports.llm import DocumentLlmPort
-from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.ports.rdbms import ProcessingRecordPort
 from docflow_agent.ports.vector_store import VectorStorePort
-from docflow_agent.types.external import ProcessingRecord, QueueMessage, VectorStoreDocument
+from docflow_agent.types.external import ProcessingRecord, VectorStoreDocument
 
 
 @dataclass(frozen=True)
@@ -27,7 +26,6 @@ class RepositoryBackedDocumentUsecases:
     llm_gateway: DocumentLlmPort | None = None
     processing_record_store: ProcessingRecordPort | None = None
     vector_store: VectorStorePort | None = None
-    workflow_queue: WorkflowQueuePort | None = None
 
     def load_source(self, user_input: str) -> str:
         source_payload = {
@@ -163,12 +161,6 @@ class RepositoryBackedDocumentUsecases:
             artifact_refs=[draft_ref_id, result_ref_id],
             metadata={"draft_ref_id": draft_ref_id},
         )
-        self._enqueue_message(
-            message_id=f"send-{result_ref_id}",
-            topic="mail.send",
-            payload={"draft_ref_id": draft_ref_id, "result_ref_id": result_ref_id},
-            metadata={"stage": "sent"},
-        )
         return UsecaseOutcome(
             ref_id=result_ref_id,
             message="Mail sent after approval.",
@@ -185,12 +177,6 @@ class RepositoryBackedDocumentUsecases:
             status="rejected",
             artifact_refs=[ref for ref in [draft_ref_id, result_ref_id] if ref is not None],
             metadata={"draft_ref_id": draft_ref_id},
-        )
-        self._enqueue_message(
-            message_id=f"reject-{result_ref_id}",
-            topic="mail.reject",
-            payload={"draft_ref_id": draft_ref_id, "result_ref_id": result_ref_id},
-            metadata={"stage": "rejected"},
         )
         return UsecaseOutcome(
             ref_id=result_ref_id,
@@ -250,23 +236,4 @@ class RepositoryBackedDocumentUsecases:
                     metadata=metadata,
                 )
             ]
-        )
-
-    def _enqueue_message(
-        self,
-        *,
-        message_id: str,
-        topic: str,
-        payload: dict[str, object],
-        metadata: dict[str, object],
-    ) -> None:
-        if self.workflow_queue is None:
-            return
-        self.workflow_queue.enqueue(
-            QueueMessage(
-                message_id=message_id,
-                topic=topic,
-                payload=payload,
-                metadata=metadata,
-            )
         )

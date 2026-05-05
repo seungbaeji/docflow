@@ -1,4 +1,4 @@
-from docflow_agent.inbound.langgraph.routes import route_flow
+from docflow_agent.workflow.routes import route_flow
 
 
 def test_route_flow_document_process_for_document_prompt() -> None:
@@ -14,4 +14,3 @@ def test_route_flow_document_to_mail_for_document_and_mail_prompt() -> None:
 def test_route_flow_unknown_for_unrelated_prompt() -> None:
     state = {"user_input": "점심 메뉴를 추천해줘"}
     assert route_flow(state) == "unknown"
-

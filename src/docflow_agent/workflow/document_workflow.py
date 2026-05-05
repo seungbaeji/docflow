@@ -5,8 +5,18 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from docflow_agent.inbound.langgraph.nodes import (
+from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
+from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
+from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
+from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
+    InMemoryArtifactRepository,
+)
+from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
+from docflow_agent.ports.repositories import ArtifactRepository
+from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.workflow.nodes import (
     DocumentWorkflowUsecases,
+    WorkflowRuntime,
     analyze_node,
     categorize_units_node,
     combine_bundle_node,
@@ -20,16 +30,7 @@ from docflow_agent.inbound.langgraph.nodes import (
     send_mail_node,
     unknown_node,
 )
-from docflow_agent.inbound.langgraph.state import WorkflowState
-from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
-from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
-from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
-    InMemoryArtifactRepository,
-)
-from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
-from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
-from docflow_agent.ports.repositories import ArtifactRepository
-from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.workflow.state import WorkflowState
 
 
 def _route_selected_flow(state: WorkflowState) -> str:
@@ -57,8 +58,10 @@ def _route_mail_approval(state: WorkflowState) -> str:
 def build_document_workflow(
     usecases: DocumentWorkflowUsecases,
     artifact_repository: ArtifactRepository,
+    workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
     del artifact_repository
+    active_workflow_runtime = workflow_runtime or WorkflowRuntime()
     graph = StateGraph(WorkflowState)
     graph.add_node("select_flow", select_flow_node)
     graph.add_node("load_source", partial(load_source_node, usecases=usecases))
@@ -70,10 +73,24 @@ def build_document_workflow(
     graph.add_node("compose_mail", partial(compose_mail_node, usecases=usecases))
     graph.add_node(
         "request_send_mail_approval",
-        partial(request_send_mail_approval_node, usecases=usecases),
+        partial(
+            request_send_mail_approval_node,
+            usecases=usecases,
+            workflow_runtime=active_workflow_runtime,
+        ),
     )
-    graph.add_node("send_mail", partial(send_mail_node, usecases=usecases))
-    graph.add_node("reject_send_mail", partial(reject_send_mail_node, usecases=usecases))
+    graph.add_node(
+        "send_mail",
+        partial(send_mail_node, usecases=usecases, workflow_runtime=active_workflow_runtime),
+    )
+    graph.add_node(
+        "reject_send_mail",
+        partial(
+            reject_send_mail_node,
+            usecases=usecases,
+            workflow_runtime=active_workflow_runtime,
+        ),
+    )
     graph.add_node("unknown", partial(unknown_node, usecases=usecases))
 
     graph.add_edge(START, "select_flow")
@@ -120,19 +137,27 @@ def build_document_workflow(
 def create_document_workflow(
     usecases: DocumentWorkflowUsecases | None = None,
     artifact_repository: ArtifactRepository | None = None,
+    workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
     repository = artifact_repository or InMemoryArtifactRepository()
+    processing_record_store = InMemoryProcessingRecordStore()
+    workflow_queue = InMemoryWorkflowQueue()
     workflow_usecases = usecases or RepositoryBackedDocumentUsecases(
         artifact_repository=repository,
         llm_gateway=StubDocumentLlmGateway(
             summary_response="Stub summary for unsettled items.",
             answer_response="Stub answer for document question.",
         ),
-        processing_record_store=InMemoryProcessingRecordStore(),
+        processing_record_store=processing_record_store,
         vector_store=InMemoryVectorStore(),
-        workflow_queue=InMemoryWorkflowQueue(),
     )
     return build_document_workflow(
         usecases=workflow_usecases,
         artifact_repository=repository,
+        workflow_runtime=workflow_runtime
+        or WorkflowRuntime(
+            processing_record_store=processing_record_store,
+            workflow_queue=workflow_queue,
+        ),
     )
+

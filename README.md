@@ -12,7 +12,7 @@ usecases -> core
 usecases -> outbound
 ```
 
-- `inbound`: FastAPI, Streamlit, LangGraph, CLI 같은 진입점
+- `inbound`: FastAPI, Streamlit, CLI 같은 진입점
 - `workflow`: 요청 하나의 실행 문맥을 유지하면서 여러 usecase를 연결하는 stateful orchestration object
 - `usecases`: source 조회, core 호출, outbound 호출, 결과 조합, 저장/전달 orchestration
 - `core`: source kind 판단, unit 파싱, category 판단, bundle 결합, 분석, 규칙, edit intent 생성
@@ -49,13 +49,18 @@ workflow의 책임:
 - `pending / approve / reject / resume` 같은 HITL 상태 관리
 - state에는 control field와 artifact ref만 두고, 큰 데이터는 repository/store에 보관
 
-현재 구현은 LangGraph를 사용하지만, workflow 개념 자체는 LangGraph에 종속되지 않습니다.
+현재 구현은 `src/docflow_agent/workflow/` 아래에 있고 LangGraph를 실행 엔진으로 사용하지만, workflow 개념 자체는 LangGraph에 종속되지 않습니다.
+
+외부 agent 노출이 필요해지면 별도 public tool을 두기보다 MCP server를 추가하는 방향을 우선 고려합니다. 현재는 외부 노출용 tool entrypoint를 두지 않습니다.
 
 ## 프로젝트 구조
 
 ```text
 src/docflow_agent/
   inbound/
+    api/
+    ui/
+  workflow/
   usecases/
   core/
     source_kind/

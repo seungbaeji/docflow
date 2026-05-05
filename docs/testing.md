@@ -66,7 +66,7 @@
 - `tests/unit/workflow/test_state_safety.py`
 - `tests/unit/workflow/test_workflow_document_to_mail.py`
 
-즉 workflow 테스트는 "LangGraph 라이브러리 검증"이 아니라 "graph로 표현된 우리 흐름 검증"입니다.
+즉 workflow 테스트는 "LangGraph 라이브러리 검증"이 아니라 "workflow layer가 표현한 우리 흐름 검증"입니다.
 
 ### outbound
 

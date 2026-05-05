@@ -64,6 +64,8 @@ state에는 다음만 들어갑니다.
 
 따라서 workflow 테스트는 “LangGraph 라이브러리 자체를 테스트”하는 것이 아니라, graph가 표현하는 흐름과 상태 전이가 우리 의도대로 동작하는지를 검증합니다.
 
+현재 코드에서는 workflow 관련 구현이 `src/docflow_agent/workflow/` 아래에 있고, `inbound`는 workflow를 호출하는 thin entrypoint만 둡니다.
+
 ## 테스트 관점
 
 workflow 테스트는 보통 `unit` 성격입니다.
@@ -77,4 +79,3 @@ workflow 테스트는 보통 `unit` 성격입니다.
 - human approval pending / approve / reject 흐름
 
 이 테스트는 `tests/unit/workflow/` 아래에 두는 것이 가장 자연스럽습니다.
-

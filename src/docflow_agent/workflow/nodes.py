@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from docflow_agent.inbound.langgraph.routes import get_human_decision, route_flow
-from docflow_agent.inbound.langgraph.state import ArtifactKind, ArtifactRef, WorkflowState
+from docflow_agent.ports.queue import WorkflowQueuePort
+from docflow_agent.ports.rdbms import ProcessingRecordPort
+from docflow_agent.types.external import ProcessingRecord, QueueMessage
 from docflow_agent.usecases.document_workflow import UsecaseOutcome
+from docflow_agent.workflow.routes import get_human_decision, route_flow
+from docflow_agent.workflow.state import ArtifactKind, ArtifactRef, WorkflowState
 
 
 class DocumentWorkflowUsecases(Protocol):
@@ -42,6 +46,12 @@ class DocumentWorkflowUsecases(Protocol):
 ArtifactRefListKey = Literal["source_refs", "unit_refs", "bundle_refs", "dataset_refs", "output_refs"]
 
 
+@dataclass(frozen=True)
+class WorkflowRuntime:
+    processing_record_store: ProcessingRecordPort | None = None
+    workflow_queue: WorkflowQueuePort | None = None
+
+
 def _artifact_ref(kind: ArtifactKind, ref_id: str) -> ArtifactRef:
     return {"kind": kind, "ref_id": ref_id}
 
@@ -50,6 +60,46 @@ def _append_artifact_ref(state: WorkflowState, key: ArtifactRefListKey, ref: Art
     refs = list(state.get(key, []))
     refs.append(ref)
     state[key] = refs
+
+
+def _save_workflow_record(
+    runtime: WorkflowRuntime,
+    *,
+    record_id: str,
+    status: str,
+    artifact_refs: list[str],
+    metadata: dict[str, object],
+) -> None:
+    if runtime.processing_record_store is None:
+        return
+    runtime.processing_record_store.save_processing_record(
+        ProcessingRecord(
+            record_id=record_id,
+            status=status,
+            artifact_refs=artifact_refs,
+            metadata=metadata,
+        )
+    )
+
+
+def _enqueue_workflow_message(
+    runtime: WorkflowRuntime,
+    *,
+    message_id: str,
+    topic: str,
+    payload: dict[str, object],
+    metadata: dict[str, object],
+) -> None:
+    if runtime.workflow_queue is None:
+        return
+    runtime.workflow_queue.enqueue(
+        QueueMessage(
+            message_id=message_id,
+            topic=topic,
+            payload=payload,
+            metadata=metadata,
+        )
+    )
 
 
 def select_flow_node(state: WorkflowState) -> WorkflowState:
@@ -133,10 +183,12 @@ def compose_mail_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) 
 def request_send_mail_approval_node(
     state: WorkflowState,
     usecases: DocumentWorkflowUsecases,
+    workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     del usecases
     decision = get_human_decision(state, "approve_send_mail")
     state["current_step"] = "request_send_mail_approval"
+    draft_ref_id = state["output_refs"][-1]["ref_id"]
     if decision is None:
         state["pending_human_decision"] = {
             "decision_id": "approve_send_mail",
@@ -144,30 +196,74 @@ def request_send_mail_approval_node(
             "message": "Approve sending the generated mail draft?",
             "options": ["approve", "reject"],
             "selected": None,
-            "payload": {"draft_ref_id": state["output_refs"][-1]["ref_id"]},
+            "payload": {"draft_ref_id": draft_ref_id},
         }
+        _save_workflow_record(
+            workflow_runtime,
+            record_id=f"workflow-pending-{draft_ref_id}",
+            status="pending_approval",
+            artifact_refs=[draft_ref_id],
+            metadata={"decision_id": "approve_send_mail", "step": "request_send_mail_approval"},
+        )
+        _enqueue_workflow_message(
+            workflow_runtime,
+            message_id=f"approval-request-{draft_ref_id}",
+            topic="workflow.approval_requested",
+            payload={"draft_ref_id": draft_ref_id, "decision_id": "approve_send_mail"},
+            metadata={"step": "request_send_mail_approval"},
+        )
         state["result"] = "Awaiting approval to send mail."
         return state
 
     state.pop("pending_human_decision", None)
+    if decision["selected"] is not None:
+        _save_workflow_record(
+            workflow_runtime,
+            record_id=f"workflow-decision-{draft_ref_id}",
+            status=f"decision_{decision['selected']}",
+            artifact_refs=[draft_ref_id],
+            metadata={"decision_id": decision["decision_id"], "selected": decision["selected"]},
+        )
     return state
 
 
-def send_mail_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
+def send_mail_node(
+    state: WorkflowState,
+    usecases: DocumentWorkflowUsecases,
+    workflow_runtime: WorkflowRuntime,
+) -> WorkflowState:
     draft_ref_id = state["output_refs"][-1]["ref_id"]
     outcome = usecases.send_mail(draft_ref_id)
     result_ref = _artifact_ref("result", outcome.ref_id)
     _append_artifact_ref(state, "output_refs", result_ref)
+    _enqueue_workflow_message(
+        workflow_runtime,
+        message_id=f"workflow-send-{outcome.ref_id}",
+        topic="workflow.mail_sent",
+        payload={"draft_ref_id": draft_ref_id, "result_ref_id": outcome.ref_id},
+        metadata={"step": "send_mail"},
+    )
     state["result"] = outcome.message
     state["current_step"] = "send_mail"
     return state
 
 
-def reject_send_mail_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
+def reject_send_mail_node(
+    state: WorkflowState,
+    usecases: DocumentWorkflowUsecases,
+    workflow_runtime: WorkflowRuntime,
+) -> WorkflowState:
     draft_ref_id = state.get("output_refs", [])[-1]["ref_id"] if state.get("output_refs") else None
     outcome = usecases.reject_send_mail(draft_ref_id)
     result_ref = _artifact_ref("result", outcome.ref_id)
     _append_artifact_ref(state, "output_refs", result_ref)
+    _enqueue_workflow_message(
+        workflow_runtime,
+        message_id=f"workflow-reject-{outcome.ref_id}",
+        topic="workflow.mail_rejected",
+        payload={"draft_ref_id": draft_ref_id, "result_ref_id": outcome.ref_id},
+        metadata={"step": "reject_send_mail"},
+    )
     state.pop("pending_human_decision", None)
     state["result"] = outcome.message
     state["current_step"] = "reject_send_mail"
@@ -181,3 +277,4 @@ def unknown_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> Wo
     state["error"] = outcome.message
     state["current_step"] = "unknown"
     return state
+

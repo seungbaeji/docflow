@@ -59,3 +59,4 @@ class WorkflowState(TypedDict, total=False):
 
     result: str
     error: str
+

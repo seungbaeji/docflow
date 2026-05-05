@@ -25,6 +25,7 @@ Rules:
 - `core` must not call `outbound`
 - `outbound` must not call `core`
 - `inbound` is entrypoint only
+- `workflow` is its own layer, not part of `inbound`
 
 ## Workflow
 
@@ -48,7 +49,7 @@ Rules:
 
 ### inbound
 
-- FastAPI, Streamlit, LangGraph, CLI
+- FastAPI, Streamlit, CLI entrypoints
 - call workflow or usecases only
 - no business logic
 
@@ -115,3 +116,5 @@ Rules:
 ## Constraint
 
 Optimize for document complexity, not provider abstraction.
+
+If external agent exposure is needed later, prefer adding MCP as a separate public interface rather than exposing workflow through ad hoc public tools.
