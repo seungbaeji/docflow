@@ -1,20 +1,20 @@
 # docflow-agent
 
-다양한 입력 소스를 Agent와 usecase로 오케스트레이션하고, `source -> unit -> bundle` 모델 위에서 문서 해석, 분석, 규칙 검증, 문서 수정 자동화까지 확장할 수 있도록 만든 문서 처리 프레임워크입니다.
+다양한 입력 소스를 처리하면서, `source -> unit -> bundle` 모델 위에서 문서 해석, 분석, 규칙 검증, 문서 수정 자동화까지 확장할 수 있도록 만든 문서 처리 프레임워크입니다.
 
 ## 아키텍처
 
-이 프로젝트는 선형 파이프라인보다 usecase 중심 오케스트레이션을 따릅니다.
+이 프로젝트는 선형 파이프라인보다 `workflow + usecase` 중심 오케스트레이션을 따릅니다.
 
 ```text
-inbound -> usecases
+inbound -> workflow -> usecases
 usecases -> core
 usecases -> outbound
 ```
 
-- `inbound`: FastAPI, Streamlit, LangGraph, CLI 진입점
-- `usecases`: 소스 조회, core 호출, outbound 호출, 결과 조합, 저장/전달 orchestration
-- `workflow`: state/context를 관리하며 여러 usecase를 연결하는 상위 실행 흐름. 현재는 LangGraph로 실행
+- `inbound`: FastAPI, Streamlit, LangGraph, CLI 같은 진입점
+- `workflow`: 요청 하나의 실행 문맥을 유지하면서 여러 usecase를 연결하는 stateful orchestration object
+- `usecases`: source 조회, core 호출, outbound 호출, 결과 조합, 저장/전달 orchestration
 - `core`: source kind 판단, unit 파싱, category 판단, bundle 결합, 분석, 규칙, edit intent 생성
 - `outbound`: ECM, files, mail, SAP, OCR, LLM, DB, Excel automation, RPA, COM 같은 외부 연동과 실행
   - `outbound/external`: ECM, SAP, mail, OCR, storage, LLM 같은 외부 시스템 연동
@@ -29,11 +29,27 @@ usecases -> outbound
 - `bundle`: 여러 unit을 비즈니스 목적에 맞게 합친 구조
 - `category`: business meaning. 예: invoice, settlement
 - `edit intent`: core가 결정한 수정 명세. 실제 파일/애플리케이션 수정은 outbound가 수행
-- `workflow`: artifact ref와 human decision을 들고 가며 전체 흐름을 이어가는 실행 단위
+- `workflow`: artifact ref와 human decision을 들고 가며 전체 흐름을 이어가는 재개 가능한 실행 단위
 
 core는 구조화된 타입만 다루고 outbound를 전혀 모릅니다. outbound는 외부 응답, 파일, bytes, API 호출뿐 아니라 문서 수정 실행과 애플리케이션 자동화까지 책임집니다.
 
-workflow는 `tool`과 다릅니다. tool은 stateless 진입점이고, workflow는 작은 state와 artifact ref를 유지하면서 여러 단계를 재개 가능한 흐름으로 연결합니다. 현재 구현은 LangGraph를 사용하지만, workflow 개념 자체가 LangGraph에 종속되지는 않습니다.
+## Workflow
+
+이 프로젝트에서 `workflow`는 특정 graph library 이름이 아니라, 요청 하나의 실행 문맥을 관리하는 오케스트레이션 객체를 뜻합니다.
+
+- `tool`: stateless entrypoint
+- `workflow`: state/context를 유지하며 여러 단계와 HITL 분기를 이어가는 실행 단위
+- `usecase`: workflow 안에서 호출되는 개별 비즈니스 작업
+
+workflow의 책임:
+
+- 어떤 flow를 실행할지 결정
+- 현재 step과 다음 step 관리
+- 여러 usecase를 올바른 순서로 연결
+- `pending / approve / reject / resume` 같은 HITL 상태 관리
+- state에는 control field와 artifact ref만 두고, 큰 데이터는 repository/store에 보관
+
+현재 구현은 LangGraph를 사용하지만, workflow 개념 자체는 LangGraph에 종속되지 않습니다.
 
 ## 프로젝트 구조
 
@@ -104,10 +120,10 @@ CLI 엔트리포인트는 다음과 같습니다.
 
 이 프로젝트는 `inbound`나 `outbound`를 위해 별도의 abstract adapter interface를 먼저 만들지 않습니다. 대신 실제 모듈을 직접 호출하고, 필요한 경계는 함수 호출 지점에서 `monkeypatch`, fake object, `tmp_path` 같은 테스트 도구로 제어합니다.
 
-- `core`: 순수 함수 중심으로 직접 unit test
-- `usecases`: outbound 호출 지점을 `monkeypatch`로 바꿔 orchestration 검증
-- `outbound`: fake response와 로컬 파일 기반 integration test
-- `inbound`: 가능한 얇게 유지하고 usecase 호출과 error translation만 검증
+- `core`: `tests/unit/core`
+- `usecases`: `tests/unit/usecases`
+- `workflow`: `tests/unit/workflow`
+- `outbound`: `tests/integration/outbound`
 
 이 접근은 provider abstraction보다 문서 해석과 business rule에 복잡성이 집중된 현재 구조에 더 잘 맞습니다.
 

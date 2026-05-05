@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from docflow_agent.ports.llm import DocumentLlmPort
+from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.ports.repositories import ArtifactRepository
+from docflow_agent.ports.rdbms import ProcessingRecordPort
+from docflow_agent.ports.vector_store import VectorStorePort
+from docflow_agent.types.external import ProcessingRecord, QueueMessage, VectorStoreDocument
 
 
 @dataclass(frozen=True)
@@ -19,6 +24,10 @@ def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
 @dataclass(frozen=True)
 class RepositoryBackedDocumentUsecases:
     artifact_repository: ArtifactRepository
+    llm_gateway: DocumentLlmPort | None = None
+    processing_record_store: ProcessingRecordPort | None = None
+    vector_store: VectorStorePort | None = None
+    workflow_queue: WorkflowQueuePort | None = None
 
     def load_source(self, user_input: str) -> str:
         source_payload = {
@@ -92,6 +101,17 @@ class RepositoryBackedDocumentUsecases:
             },
             metadata={"bundle_ref_id": bundle_ref_id, "stage": "analyzed"},
         )
+        self._save_processing_record(
+            record_id=analysis_ref_id,
+            status="analyzed",
+            artifact_refs=[bundle_ref_id, analysis_ref_id],
+            metadata={"bundle_ref_id": bundle_ref_id, "category": str(bundle["category"])},
+        )
+        self._upsert_vector_document(
+            document_id=analysis_ref_id,
+            text=f"Analysis for {bundle_ref_id} category={bundle['category']}",
+            metadata={"bundle_ref_id": bundle_ref_id, "kind": "analysis"},
+        )
         return UsecaseOutcome(
             ref_id=analysis_ref_id,
             message=f"Document processed with {len(bundle['unit_ref_ids'])} categorized units.",
@@ -109,13 +129,23 @@ class RepositoryBackedDocumentUsecases:
         return dataset_ref_id
 
     def compose_mail(self, dataset_ref_id: str) -> str:
+        dataset = self.artifact_repository.load("dataset", dataset_ref_id)
+        body = "Please review the unsettled items from the document workflow."
+        if self.llm_gateway is not None:
+            body = self.llm_gateway.summarize_document(
+                {
+                    "dataset_ref_id": dataset_ref_id,
+                    "records": dataset["records"],
+                    "task": "Compose an internal mail summary for unsettled items.",
+                }
+            )
         draft_ref_id = self.artifact_repository.save(
             kind="draft",
             value={
                 "dataset_ref_id": dataset_ref_id,
                 "to": ["ops@example.com"],
                 "subject": "Unsettled items report",
-                "body": "Please review the unsettled items from the document workflow.",
+                "body": body,
             },
             metadata={"dataset_ref_id": dataset_ref_id, "stage": "composed"},
         )
@@ -126,6 +156,18 @@ class RepositoryBackedDocumentUsecases:
             kind="result",
             value={"draft_ref_id": draft_ref_id, "status": "sent"},
             metadata={"draft_ref_id": draft_ref_id, "stage": "sent"},
+        )
+        self._save_processing_record(
+            record_id=result_ref_id,
+            status="sent",
+            artifact_refs=[draft_ref_id, result_ref_id],
+            metadata={"draft_ref_id": draft_ref_id},
+        )
+        self._enqueue_message(
+            message_id=f"send-{result_ref_id}",
+            topic="mail.send",
+            payload={"draft_ref_id": draft_ref_id, "result_ref_id": result_ref_id},
+            metadata={"stage": "sent"},
         )
         return UsecaseOutcome(
             ref_id=result_ref_id,
@@ -138,6 +180,18 @@ class RepositoryBackedDocumentUsecases:
             value={"draft_ref_id": draft_ref_id, "status": "rejected"},
             metadata={"draft_ref_id": draft_ref_id, "stage": "rejected"},
         )
+        self._save_processing_record(
+            record_id=result_ref_id,
+            status="rejected",
+            artifact_refs=[ref for ref in [draft_ref_id, result_ref_id] if ref is not None],
+            metadata={"draft_ref_id": draft_ref_id},
+        )
+        self._enqueue_message(
+            message_id=f"reject-{result_ref_id}",
+            topic="mail.reject",
+            payload={"draft_ref_id": draft_ref_id, "result_ref_id": result_ref_id},
+            metadata={"stage": "rejected"},
+        )
         return UsecaseOutcome(
             ref_id=result_ref_id,
             message="User rejected mail sending.",
@@ -149,8 +203,70 @@ class RepositoryBackedDocumentUsecases:
             value={"prompt": user_input, "status": "unknown"},
             metadata={"stage": "unknown"},
         )
+        self._save_processing_record(
+            record_id=result_ref_id,
+            status="unknown",
+            artifact_refs=[result_ref_id],
+            metadata={"prompt": user_input},
+        )
         return UsecaseOutcome(
             ref_id=result_ref_id,
             message="Unable to determine a supported workflow for the request.",
         )
 
+    def _save_processing_record(
+        self,
+        *,
+        record_id: str,
+        status: str,
+        artifact_refs: list[str],
+        metadata: dict[str, object],
+    ) -> None:
+        if self.processing_record_store is None:
+            return
+        self.processing_record_store.save_processing_record(
+            ProcessingRecord(
+                record_id=record_id,
+                status=status,
+                artifact_refs=artifact_refs,
+                metadata=metadata,
+            )
+        )
+
+    def _upsert_vector_document(
+        self,
+        *,
+        document_id: str,
+        text: str,
+        metadata: dict[str, object],
+    ) -> None:
+        if self.vector_store is None:
+            return
+        self.vector_store.upsert_documents(
+            [
+                VectorStoreDocument(
+                    document_id=document_id,
+                    text=text,
+                    metadata=metadata,
+                )
+            ]
+        )
+
+    def _enqueue_message(
+        self,
+        *,
+        message_id: str,
+        topic: str,
+        payload: dict[str, object],
+        metadata: dict[str, object],
+    ) -> None:
+        if self.workflow_queue is None:
+            return
+        self.workflow_queue.enqueue(
+            QueueMessage(
+                message_id=message_id,
+                topic=topic,
+                payload=payload,
+                metadata=metadata,
+            )
+        )

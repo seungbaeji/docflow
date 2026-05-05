@@ -21,9 +21,13 @@ from docflow_agent.inbound.langgraph.nodes import (
     unknown_node,
 )
 from docflow_agent.inbound.langgraph.state import WorkflowState
+from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
+from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
+from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
+from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
 from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
 
@@ -118,7 +122,16 @@ def create_document_workflow(
     artifact_repository: ArtifactRepository | None = None,
 ) -> Any:
     repository = artifact_repository or InMemoryArtifactRepository()
-    workflow_usecases = usecases or RepositoryBackedDocumentUsecases(repository)
+    workflow_usecases = usecases or RepositoryBackedDocumentUsecases(
+        artifact_repository=repository,
+        llm_gateway=StubDocumentLlmGateway(
+            summary_response="Stub summary for unsettled items.",
+            answer_response="Stub answer for document question.",
+        ),
+        processing_record_store=InMemoryProcessingRecordStore(),
+        vector_store=InMemoryVectorStore(),
+        workflow_queue=InMemoryWorkflowQueue(),
+    )
     return build_document_workflow(
         usecases=workflow_usecases,
         artifact_repository=repository,
