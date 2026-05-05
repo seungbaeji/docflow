@@ -1,26 +1,44 @@
 import argparse
 
-from docflow_agent.types.source import SourceRef
-from docflow_agent.usecases.process_source import process_source
+from docflow_agent.workflow.document_workflow import (
+    invoke_document_workflow,
+    workflow_state_to_response,
+)
+from docflow_agent.workflow.state import HumanDecision
+
+
+def _build_human_decisions(approve_send_mail: str | None) -> list[HumanDecision] | None:
+    if approve_send_mail is None:
+        return None
+    return [
+        {
+            "decision_id": "approve_send_mail",
+            "kind": "approve",
+            "message": "Approve sending the generated mail draft?",
+            "options": ["approve", "reject"],
+            "selected": approve_send_mail,
+            "payload": None,
+        }
+    ]
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Process an Excel source into invoice units/bundles.")
-    parser.add_argument("path")
-    parser.add_argument("--name", default="invoice.xlsx")
-    parser.add_argument("--source-system", default="ecm")
+    parser = argparse.ArgumentParser(description="Run the document workflow from a prompt.")
     parser.add_argument(
-        "--content-type",
-        default="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "user_input",
+        nargs="?",
+        default="엑셀 문서를 분석해줘",
+        help="Prompt that tells the workflow what document flow to run.",
+    )
+    parser.add_argument(
+        "--approve-send-mail",
+        choices=["approve", "reject"],
+        help="Inject a human decision for the mail approval step.",
     )
     args = parser.parse_args()
 
-    result = process_source(
-        SourceRef(
-            name=args.name,
-            location=args.path,
-            content_type=args.content_type,
-            source_system=args.source_system,
-        )
+    state = invoke_document_workflow(
+        user_input=args.user_input,
+        human_decisions=_build_human_decisions(args.approve_send_mail),
     )
-    print(result)
+    print(workflow_state_to_response(state))

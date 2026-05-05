@@ -1,14 +1,21 @@
-from docflow_agent.types.source import SourceRef
-from docflow_agent.usecases.process_source import process_source
+from docflow_agent.workflow.document_workflow import (
+    invoke_document_workflow,
+    workflow_state_to_response,
+)
 
 
 def main() -> None:
-    result = process_source(
-        SourceRef(
-            name="invoice.xlsx",
-            location="stub://fixtures/invoice.xlsx",
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            source_system="ecm",
-        )
+    state = invoke_document_workflow(
+        user_input="엑셀에서 미정산 건을 찾아 메일로 보내줘",
+        human_decisions=[
+            {
+                "decision_id": "approve_send_mail",
+                "kind": "approve",
+                "message": "Approve sending the generated mail draft?",
+                "options": ["approve", "reject"],
+                "selected": "approve",
+                "payload": None,
+            }
+        ],
     )
-    print(result)
+    print(workflow_state_to_response(state))

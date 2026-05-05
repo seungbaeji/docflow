@@ -37,7 +37,7 @@ core는 구조화된 타입만 다루고 outbound를 전혀 모릅니다. outbou
 
 이 프로젝트에서 `workflow`는 특정 graph library 이름이 아니라, 요청 하나의 실행 문맥을 관리하는 오케스트레이션 객체를 뜻합니다.
 
-- `tool`: stateless entrypoint
+- `entrypoint`: stateless request boundary
 - `workflow`: state/context를 유지하며 여러 단계와 HITL 분기를 이어가는 실행 단위
 - `usecase`: workflow 안에서 호출되는 개별 비즈니스 작업
 
@@ -60,6 +60,7 @@ src/docflow_agent/
   inbound/
     api/
     ui/
+  cli/
   workflow/
   usecases/
   core/

@@ -43,7 +43,7 @@ Rules:
 
 - large data must live in repository/store, not workflow state
 - current implementation may use LangGraph, but workflow concept is not LangGraph-specific
-- tools are stateless entrypoints; workflow owns execution context
+- entrypoints are stateless; workflow owns execution context
 
 ## Layers
 

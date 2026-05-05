@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import cast
 
 from docflow_agent.errors import (
     DocflowError,
@@ -10,29 +11,40 @@ from docflow_agent.errors import (
     UnsupportedLlmProviderError,
     UnsupportedSourceKindError,
 )
-from docflow_agent.types.source import SourceRef
-from docflow_agent.usecases.process_source import process_source
+from docflow_agent.workflow.state import HumanDecision
+from docflow_agent.workflow.document_workflow import (
+    invoke_document_workflow,
+    workflow_state_to_response,
+)
 
 router = APIRouter()
 
 
+class HumanDecisionRequest(BaseModel):
+    decision_id: str
+    kind: str
+    message: str
+    options: list[str]
+    selected: str | None = None
+    payload: dict[str, object] | None = None
+
+
 class ProcessRequest(BaseModel):
-    source_name: str
-    source_location: str
-    source_system: str = "ecm"
-    content_type: str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    user_input: str
+    human_decisions: list[HumanDecisionRequest] | None = None
 
 
 @router.post("/process")
 def process(request: ProcessRequest) -> dict[str, object]:
     try:
-        result = process_source(
-            SourceRef(
-                name=request.source_name,
-                location=request.source_location,
-                content_type=request.content_type,
-                source_system=request.source_system,
-            )
+        human_decisions = (
+            cast(list[HumanDecision], [decision.model_dump() for decision in request.human_decisions])
+            if request.human_decisions
+            else None
+        )
+        state = invoke_document_workflow(
+            user_input=request.user_input,
+            human_decisions=human_decisions,
         )
     except (UnsupportedSourceKindError, UnsupportedCategoryError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -42,11 +54,4 @@ def process(request: ProcessRequest) -> dict[str, object]:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except DocflowError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return {
-        "source_kind": result.source_kind,
-        "category": result.category,
-        "success": result.success,
-        "unit_count": result.unit_count,
-        "bundle_data": result.bundle_data,
-        "messages": result.messages,
-    }
+    return workflow_state_to_response(state)

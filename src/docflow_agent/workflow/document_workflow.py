@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Any
+from typing import Any, cast
 
 from langgraph.graph import END, START, StateGraph
 
@@ -30,7 +30,7 @@ from docflow_agent.workflow.nodes import (
     send_mail_node,
     unknown_node,
 )
-from docflow_agent.workflow.state import WorkflowState
+from docflow_agent.workflow.state import HumanDecision, WorkflowState
 
 
 def _route_selected_flow(state: WorkflowState) -> str:
@@ -161,3 +161,31 @@ def create_document_workflow(
         ),
     )
 
+
+def invoke_document_workflow(
+    user_input: str,
+    human_decisions: list[HumanDecision] | None = None,
+    workflow: Any | None = None,
+) -> WorkflowState:
+    active_workflow = workflow or create_document_workflow()
+    initial_state: WorkflowState = {"user_input": user_input}
+    if human_decisions:
+        initial_state["human_decisions"] = human_decisions
+    return cast(WorkflowState, active_workflow.invoke(initial_state))
+
+
+def workflow_state_to_response(state: WorkflowState) -> dict[str, object]:
+    response: dict[str, object] = {
+        "flow": state.get("flow", "unknown"),
+        "current_step": state.get("current_step", ""),
+        "result": state.get("result"),
+        "error": state.get("error"),
+        "source_refs": state.get("source_refs", []),
+        "unit_refs": state.get("unit_refs", []),
+        "bundle_refs": state.get("bundle_refs", []),
+        "dataset_refs": state.get("dataset_refs", []),
+        "output_refs": state.get("output_refs", []),
+    }
+    if "pending_human_decision" in state:
+        response["pending_human_decision"] = state["pending_human_decision"]
+    return response
