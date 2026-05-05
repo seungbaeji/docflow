@@ -3,17 +3,15 @@ from __future__ import annotations
 from docflow_agent.bootstrap import AppContainer
 from docflow_agent.config.prompt import (
     get_chat_system_prompt,
-    get_document_agent_system_prompt,
 )
 from docflow_agent.errors import DocumentAgentRuntimeError
-from docflow_agent.tools import DOCUMENT_AGENT_TOOLS, DocumentAgentToolContext
 from docflow_agent.usecases.chat import respond_in_chat
-from docflow_agent.workflow.document import chat as document_chat
-from docflow_agent.workflow.document import mail as document_mail
-from docflow_agent.workflow.document import parse as document_parse
-from docflow_agent.workflow.document import source as document_source
-from docflow_agent.workflow.agent import AgentRuntime
-from docflow_agent.workflow.chat import build_workflow, invoke_workflow
+from docflow_agent.workflow.chat.factory import (
+    answer_question_about_ref,
+    build_context_by_ref,
+    build_runtime,
+    prepare_context,
+)
 
 
 def respond_to_chat(
@@ -28,85 +26,26 @@ def respond_to_chat(
     if (current_source_ref is not None or current_upload_id is not None) and _requires_document_agent(
         message
     ):
-        prep_workflow = build_workflow(
-            artifact_repository=container.artifact_repository,
-            session_document_store=container.session_document_store,
-            source_from_upload=lambda upload_id: document_source.source_from_upload(
-                container.artifact_repository,
-                upload_id=upload_id,
-            ),
-            parse_units=lambda source_ref_id: document_parse.parse_units(
-                container.artifact_repository,
-                source_ref_id=source_ref_id,
-                pdf_client=container.pdf_client,
-                pdf_parser=container.pdf_parser,
-            ),
-            categorize_units=lambda unit_ref_ids: document_parse.categorize_units(
-                container.artifact_repository,
-                unit_ref_ids=unit_ref_ids,
-            ),
-            combine_bundle=lambda unit_ref_ids: document_parse.combine_bundle(
-                container.artifact_repository,
-                unit_ref_ids=unit_ref_ids,
-            ),
-            analyze=lambda bundle_ref_id: document_mail.analyze(
-                container.artifact_repository,
-                bundle_ref_id=bundle_ref_id,
-                workflow_run_store=container.workflow_run_store,
-                vector_store=container.vector_store,
-            ),
-        )
-        prep_state = invoke_workflow(
-            workflow=prep_workflow,
+        tool_context = prepare_context(
+            container,
             session_id=session_id,
             message=message,
         )
-        source_ref_id = prep_state["source_ref_id"]
-        document_payload = document_chat.build_payload(
-            container.artifact_repository,
-            source_ref_id=source_ref_id,
-            pdf_client=container.pdf_client,
-            pdf_parser=container.pdf_parser,
-        )
-        document_summary = document_chat.summarize_ref(
-            container.artifact_repository,
-            source_ref_id=source_ref_id,
-            pdf_client=container.pdf_client,
-            pdf_parser=container.pdf_parser,
-        )
-        document_agent_runtime = AgentRuntime(
-            llm_gateway=container.llm_gateway,
-            tools=DOCUMENT_AGENT_TOOLS,
-            tool_context=DocumentAgentToolContext(
-                source_ref_id=source_ref_id,
-                document_payload=document_payload,
-                document_summary=document_summary,
-            ),
-            runtime_store=container.runtime_store,
-            system_prompt=get_document_agent_system_prompt(),
-        )
+        document_agent_runtime = build_runtime(container, tool_context=tool_context)
         try:
             return document_agent_runtime.run(prompt=message).answer
         except DocumentAgentRuntimeError:
             if _requires_document_processing(message):
-                return document_summary
-            return document_chat.answer_question_about_ref(
-                container.artifact_repository,
-                source_ref_id=source_ref_id,
+                return tool_context.document_summary
+            return answer_question_about_ref(
+                container,
+                source_ref_id=tool_context.source_ref_id,
                 question=message,
-                llm_gateway=container.llm_gateway,
-                pdf_client=container.pdf_client,
-                pdf_parser=container.pdf_parser,
             )
 
     document_context = None
     if current_source_ref is not None:
-        document_context = document_chat.build_context_by_ref(
-            container.artifact_repository,
-            source_ref_id=current_source_ref,
-            pdf_client=container.pdf_client,
-            pdf_parser=container.pdf_parser,
-        )
+        document_context = build_context_by_ref(container, current_source_ref)
     return respond_in_chat(
         message=message,
         session_id=session_id,
