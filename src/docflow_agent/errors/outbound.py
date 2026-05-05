@@ -25,6 +25,25 @@ class OcrIntegrationError(OutboundError):
         self.file_name = file_name
 
 
+class MissingPdfDependencyError(OutboundError):
+    def __init__(self, dependency_name: str) -> None:
+        super().__init__(
+            f"PDF integration requires optional dependency={dependency_name}. "
+            "Install the PDF adapter dependency before parsing PDFs."
+        )
+        self.dependency_name = dependency_name
+
+
+class PdfIntegrationError(OutboundError):
+    def __init__(self, file_name: str, reason: str | None = None) -> None:
+        detail = f"PDF integration could not parse file={file_name}"
+        if reason:
+            detail = f"{detail}: {reason}"
+        super().__init__(detail)
+        self.file_name = file_name
+        self.reason = reason
+
+
 class StorageIntegrationError(OutboundError):
     def __init__(self, location: str) -> None:
         super().__init__(f"Storage integration failed for location={location}")

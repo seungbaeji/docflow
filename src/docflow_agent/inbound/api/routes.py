@@ -37,11 +37,12 @@ def process(request: ProcessRequest, app_request: Request) -> dict[str, object]:
         document_usecases = RepositoryBackedDocumentUsecases(
             artifact_repository=container.artifact_repository,
             llm_gateway=container.llm_gateway,
-            processing_record_store=container.processing_record_store,
+            workflow_run_store=container.workflow_run_store,
             vector_store=container.vector_store,
+            pdf_client=container.pdf_client,
         )
         workflow_runtime = WorkflowRuntime(
-            processing_record_store=container.processing_record_store,
+            workflow_run_store=container.workflow_run_store,
             workflow_queue=container.workflow_queue,
         )
         workflow = create_document_workflow(

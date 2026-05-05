@@ -14,8 +14,10 @@ from docflow_agent.errors.llm import (
 from docflow_agent.errors.outbound import (
     DatabaseIntegrationError,
     MailIntegrationError,
+    MissingPdfDependencyError,
     OcrIntegrationError,
     OutboundError,
+    PdfIntegrationError,
     SapIntegrationError,
     StorageIntegrationError,
 )
@@ -38,8 +40,10 @@ __all__ = [
     "MailIntegrationError",
     "MissingLlmApiKeyError",
     "MissingLlmDependencyError",
+    "MissingPdfDependencyError",
     "OcrIntegrationError",
     "OutboundError",
+    "PdfIntegrationError",
     "ProcessingError",
     "SapIntegrationError",
     "StorageIntegrationError",

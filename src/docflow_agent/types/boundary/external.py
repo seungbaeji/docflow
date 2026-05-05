@@ -38,6 +38,25 @@ class OcrPage(BoundaryModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class PdfElement(BoundaryModel):
+    element_type: str = Field(min_length=1)
+    page_number: int | None = Field(default=None, ge=1)
+    content: str | None = None
+    bounding_box: list[float] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class PdfDocument(BoundaryModel):
+    file_name: str = Field(min_length=1)
+    page_count: int = Field(ge=0)
+    markdown: str | None = None
+    html: str | None = None
+    text: str | None = None
+    elements: list[PdfElement] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    raw_json: dict[str, Any] = Field(default_factory=dict)
+
+
 class StoredObject(BoundaryModel):
     location: str = Field(min_length=1)
     content_type: str = Field(min_length=1)
@@ -45,7 +64,7 @@ class StoredObject(BoundaryModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class ProcessingRecord(BoundaryModel):
+class WorkflowRunRecord(BoundaryModel):
     record_id: str = Field(min_length=1)
     status: str = Field(min_length=1)
     artifact_refs: list[str] = Field(default_factory=list)

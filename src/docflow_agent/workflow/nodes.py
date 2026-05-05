@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from docflow_agent.ports.queue import WorkflowQueuePort
-from docflow_agent.ports.rdbms import ProcessingRecordPort
-from docflow_agent.types.boundary.external import ProcessingRecord, QueueMessage
+from docflow_agent.ports.rdbms import WorkflowRunStore
+from docflow_agent.types.boundary.external import QueueMessage, WorkflowRunRecord
 from docflow_agent.usecases.document_workflow import UsecaseOutcome
 from docflow_agent.workflow.routes import get_human_decision, route_flow
 from docflow_agent.workflow.state import ArtifactKind, ArtifactRef, WorkflowState
@@ -48,7 +48,7 @@ ArtifactRefListKey = Literal["source_refs", "unit_refs", "bundle_refs", "dataset
 
 @dataclass(frozen=True)
 class WorkflowRuntime:
-    processing_record_store: ProcessingRecordPort | None = None
+    workflow_run_store: WorkflowRunStore | None = None
     workflow_queue: WorkflowQueuePort | None = None
 
 
@@ -62,7 +62,7 @@ def _append_artifact_ref(state: WorkflowState, key: ArtifactRefListKey, ref: Art
     state[key] = refs
 
 
-def _save_workflow_record(
+def _save_workflow_run(
     runtime: WorkflowRuntime,
     *,
     record_id: str,
@@ -70,10 +70,10 @@ def _save_workflow_record(
     artifact_refs: list[str],
     metadata: dict[str, object],
 ) -> None:
-    if runtime.processing_record_store is None:
+    if runtime.workflow_run_store is None:
         return
-    runtime.processing_record_store.save_processing_record(
-        ProcessingRecord(
+    runtime.workflow_run_store.save_workflow_run(
+        WorkflowRunRecord(
             record_id=record_id,
             status=status,
             artifact_refs=artifact_refs,
@@ -198,7 +198,7 @@ def request_send_mail_approval_node(
             "selected": None,
             "payload": {"draft_ref_id": draft_ref_id},
         }
-        _save_workflow_record(
+        _save_workflow_run(
             workflow_runtime,
             record_id=f"workflow-pending-{draft_ref_id}",
             status="pending_approval",
@@ -217,7 +217,7 @@ def request_send_mail_approval_node(
 
     state.pop("pending_human_decision", None)
     if decision["selected"] is not None:
-        _save_workflow_record(
+        _save_workflow_run(
             workflow_runtime,
             record_id=f"workflow-decision-{draft_ref_id}",
             status=f"decision_{decision['selected']}",

@@ -1,19 +1,24 @@
+from pathlib import Path
+
+from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
-from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
+from docflow_agent.outbound.testing.rdbms import InMemoryWorkflowRunStore
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
+from docflow_agent.types.boundary.common import FileInfo
+from docflow_agent.types.boundary.external import PdfDocument, PdfElement
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
 
 
 def test_analyze_persists_record_and_vector_document() -> None:
     repository = InMemoryArtifactRepository()
-    processing_store = InMemoryProcessingRecordStore()
+    workflow_run_store = InMemoryWorkflowRunStore()
     vector_store = InMemoryVectorStore()
     usecases = RepositoryBackedDocumentUsecases(
         artifact_repository=repository,
-        processing_record_store=processing_store,
+        workflow_run_store=workflow_run_store,
         vector_store=vector_store,
     )
 
@@ -29,7 +34,7 @@ def test_analyze_persists_record_and_vector_document() -> None:
 
     outcome = usecases.analyze(bundle_ref_id)
 
-    record = processing_store.load_processing_record(outcome.ref_id)
+    record = workflow_run_store.load_workflow_run(outcome.ref_id)
     assert record.status == "analyzed"
     assert record.artifact_refs == [bundle_ref_id, outcome.ref_id]
     hits = vector_store.search_similar("analysis invoice", limit=1)
@@ -63,10 +68,10 @@ def test_compose_mail_uses_llm_gateway_when_available() -> None:
 
 def test_send_mail_persists_record() -> None:
     repository = InMemoryArtifactRepository()
-    processing_store = InMemoryProcessingRecordStore()
+    workflow_run_store = InMemoryWorkflowRunStore()
     usecases = RepositoryBackedDocumentUsecases(
         artifact_repository=repository,
-        processing_record_store=processing_store,
+        workflow_run_store=workflow_run_store,
     )
 
     draft_ref_id = repository.save(
@@ -77,5 +82,56 @@ def test_send_mail_persists_record() -> None:
 
     outcome = usecases.send_mail(draft_ref_id)
 
-    record = processing_store.load_processing_record(outcome.ref_id)
+    record = workflow_run_store.load_workflow_run(outcome.ref_id)
     assert record.status == "sent"
+
+
+def test_parse_units_uses_pdf_adapter_for_pdf_source(tmp_path: Path) -> None:
+    repository = InMemoryArtifactRepository()
+    source_path = tmp_path / "invoice.pdf"
+    source_path.write_bytes(b"%PDF-1.7 fake")
+
+    def fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
+        assert client.format == "markdown,json"
+        assert file_info.path == str(source_path)
+        return PdfDocument(
+            file_name="invoice.pdf",
+            page_count=2,
+            markdown="# Invoice\nAmount due",
+            elements=[
+                PdfElement(
+                    element_type="heading",
+                    page_number=1,
+                    content="Invoice",
+                    bounding_box=[72.0, 700.0, 540.0, 730.0],
+                ),
+                PdfElement(
+                    element_type="paragraph",
+                    page_number=2,
+                    content="Amount due",
+                    bounding_box=[72.0, 640.0, 540.0, 680.0],
+                ),
+            ],
+        )
+
+    usecases = RepositoryBackedDocumentUsecases(
+        artifact_repository=repository,
+        pdf_client=OpenDataLoaderPdfClient(),
+        pdf_parser=fake_pdf_parser,
+    )
+
+    source_ref_id = usecases.load_source(f"이 PDF 파일을 분석해줘 {source_path}")
+    unit_ref_ids = usecases.parse_units(source_ref_id)
+
+    assert len(unit_ref_ids) == 2
+    first_unit = repository.load("unit", unit_ref_ids[0])
+    second_unit = repository.load("unit", unit_ref_ids[1])
+    assert first_unit["name"] == "pdf_page_1"
+    assert second_unit["name"] == "pdf_page_2"
+    assert first_unit["content"] == "Invoice"
+    assert second_unit["content"] == "Amount due"
+
+    parsed_refs = repository.find("analysis", {"stage": "pdf_parsed"})
+    assert parsed_refs
+    parsed_document = repository.load("analysis", parsed_refs[0])
+    assert parsed_document["file_name"] == "invoice.pdf"

@@ -1,28 +1,28 @@
 from dataclasses import dataclass, field
 
 from docflow_agent.errors import DatabaseIntegrationError
-from docflow_agent.ports.rdbms import ProcessingRecordPort
-from docflow_agent.types.boundary.external import ProcessingRecord
+from docflow_agent.ports.rdbms import WorkflowRunStore
+from docflow_agent.types.boundary.external import WorkflowRunRecord
 
 
 @dataclass
-class InMemoryProcessingRecordStore(ProcessingRecordPort):
-    records: dict[str, ProcessingRecord] = field(default_factory=dict)
+class InMemoryWorkflowRunStore(WorkflowRunStore):
+    records: dict[str, WorkflowRunRecord] = field(default_factory=dict)
 
-    def save_processing_record(self, record: ProcessingRecord) -> None:
+    def save_workflow_run(self, record: WorkflowRunRecord) -> None:
         self.records[record.record_id] = record
 
-    def load_processing_record(self, record_id: str) -> ProcessingRecord:
+    def load_workflow_run(self, record_id: str) -> WorkflowRunRecord:
         record = self.records.get(record_id)
         if record is None:
             raise DatabaseIntegrationError(record_id)
         return record
 
-    def find_processing_records(
+    def find_workflow_runs(
         self,
         *,
         status: str | None = None,
-    ) -> list[ProcessingRecord]:
+    ) -> list[WorkflowRunRecord]:
         records = list(self.records.values())
         if status is None:
             return records

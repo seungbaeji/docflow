@@ -370,6 +370,7 @@ dependencies = [
     { name = "langchain-google-genai" },
     { name = "langchain-openai" },
     { name = "langgraph" },
+    { name = "opendataloader-pdf" },
     { name = "pydantic-settings" },
     { name = "streamlit" },
     { name = "uvicorn" },
@@ -396,6 +397,7 @@ requires-dist = [
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.5.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
+    { name = "opendataloader-pdf", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.6.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.0" },
@@ -1242,6 +1244,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b4/15/203d537e58986b5673e7f232453a2a2f110f22757b15921cbdeea392e520/openai-2.29.0.tar.gz", hash = "sha256:32d09eb2f661b38d3edd7d7e1a2943d1633f572596febe64c0cd370c86d52bec", size = 671128, upload-time = "2026-03-17T17:53:49.599Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d0/b1/35b6f9c8cf9318e3dbb7146cc82dab4cf61182a8d5406fc9b50864362895/openai-2.29.0-py3-none-any.whl", hash = "sha256:b7c5de513c3286d17c5e29b92c4c98ceaf0d775244ac8159aeb1bddf840eb42a", size = 1141533, upload-time = "2026-03-17T17:53:47.348Z" },
+]
+
+[[package]]
+name = "opendataloader-pdf"
+version = "2.4.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5c/47/4ff03b49492bca8c4b34a43111a52c37cd50cb3c3b80880f9850e8cbac62/opendataloader_pdf-2.4.1.tar.gz", hash = "sha256:32862027e72970a2dd12afea5d77aa560dbc0b1d356a2da014337716017cfcd0", size = 22538009, upload-time = "2026-04-30T08:41:42.389Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/d8/7dfe4e45937e9bcfa9221c7f990fc08c9e5c77f6ccdc83bebb88e23c6af0/opendataloader_pdf-2.4.1-py3-none-any.whl", hash = "sha256:ebf410756f261f97dc3e5064ee1e75d9b83a0554535da0eb57bfc5f76549a166", size = 22551868, upload-time = "2026-04-30T08:41:38.795Z" },
 ]
 
 [[package]]
