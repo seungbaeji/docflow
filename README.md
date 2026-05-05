@@ -4,10 +4,11 @@
 
 ## 아키텍처
 
-이 프로젝트는 선형 파이프라인보다 `workflow + usecase` 중심 오케스트레이션을 따릅니다.
+이 프로젝트는 선형 파이프라인보다 `usecase + workflow` 중심 오케스트레이션을 따릅니다.
 
 ```text
-inbound -> workflow -> usecases
+inbound -> usecases
+usecases -> workflow
 usecases -> core
 usecases -> outbound
 ```
@@ -24,8 +25,15 @@ usecases -> outbound
 - `bootstrap`: settings와 adapter를 조립해 workflow/usecase DI container를 만드는 위치
 - `config`: application settings와 prompt configuration
 - `types`: `value`와 `boundary`로 나뉜 실데이터 구조
-  - `types/value`: 내부에서 신뢰하고 쓰는 `frozen dataclass` value object
-  - `types/boundary`: 외부 입력/출력과 외부 시스템 payload를 담는 `pydantic` boundary DTO
+- `types/value`: 내부에서 신뢰하고 쓰는 `frozen dataclass` value object
+- `types/boundary`: 외부 입력/출력과 외부 시스템 payload를 담는 `pydantic` boundary DTO
+
+의존성 방향은 아래처럼 고정합니다.
+
+- `types`는 다른 레이어를 모름
+- `workflow`는 `bootstrap`을 모름
+- `inbound`는 `workflow`를 직접 호출하지 않고 `usecases` facade만 호출
+- `tools`는 상태를 고르지 않고 workflow가 준비한 explicit context만 소비
 
 핵심 개념도 바뀌었습니다.
 
@@ -62,9 +70,30 @@ workflow의 책임:
 - `pending / approve / reject / resume` 같은 HITL 상태 관리
 - state에는 control field와 artifact ref만 두고, 큰 데이터는 repository/store에 보관
 
+workflow 내부 서브패키지 방향도 고정합니다.
+
+- `workflow/process/*`는 process graph/state/node orchestration만 담당
+- `workflow/chat/*`는 chat prep workflow와 agent wiring만 담당
+- `workflow/agent/*`는 tool-calling loop만 담당
+- `workflow/document/*`는 document workflow helper만 담당
+- `workflow/document/support.py`는 document helper의 바닥층으로 두고, 다른 `workflow/document/*` 모듈은 서로 직접 의존하지 않음
+
+즉 `workflow/document/*`의 기본 방향은 아래처럼 유지합니다.
+
+```text
+workflow/document/{source,parse,chat,mail} -> workflow/document/support
+```
+
+특히:
+
+- `chat`은 `parse`를 다시 호출하지 않음
+- parse/analyze 보장은 prep workflow가 먼저 수행
+- `chat`은 준비된 artifact만 읽어 payload/context를 만듦
+- `tool`은 prepared context만 소비하고 현재 문서 선택이나 세션 상태를 결정하지 않음
+
 현재 구현은 `src/docflow_agent/workflow/` 아래에 있고 LangGraph를 실행 엔진으로 사용하지만, workflow 개념 자체는 LangGraph에 종속되지 않습니다.
 
-기본 wiring은 `src/docflow_agent/bootstrap.py`가 담당합니다. entrypoint는 bootstrap container에서 workflow와 usecase를 받아 실행하고, workflow/usecase는 adapter를 직접 생성하지 않습니다.
+기본 wiring은 `src/docflow_agent/bootstrap.py`가 담당합니다. entrypoint와 usecase facade가 bootstrap container에서 필요한 dependency를 받아 실행하고, workflow 자체는 `AppContainer`를 직접 알지 않습니다.
 
 외부 agent 노출이 필요해지면 별도 public tool을 두기보다 MCP server를 추가하는 방향을 우선 고려합니다. 현재는 외부 노출용 tool entrypoint를 두지 않습니다.
 

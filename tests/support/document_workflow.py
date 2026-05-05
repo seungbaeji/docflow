@@ -122,28 +122,20 @@ def build_document_workflow_functions(
         "build_payload": lambda source_ref_id: document_chat.build_payload(
             artifact_repository,
             source_ref_id=source_ref_id,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
         ),
         "build_context": lambda source_ref_id: document_chat.build_context_by_ref(
             artifact_repository,
             source_ref_id=source_ref_id,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
         ),
         "summarize_ref": lambda source_ref_id: document_chat.summarize_ref(
             artifact_repository,
             source_ref_id=source_ref_id,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
         ),
         "answer_question_about_ref": lambda source_ref_id, question: document_chat.answer_question_about_ref(
             artifact_repository,
             source_ref_id=source_ref_id,
             question=question,
             llm_gateway=llm_gateway,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
         ),
     }
 

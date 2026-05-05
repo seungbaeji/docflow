@@ -90,14 +90,10 @@ def prepare_context(
     payload = build_payload(
         artifact_repository=artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
     summary = summarize_ref(
         artifact_repository=artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
     return DocumentAgentToolContext(
         source_ref_id=source_ref_id,
@@ -125,14 +121,10 @@ def build_payload(
     *,
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> DocumentPayload:
     return document_chat.build_payload(
         artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
 
 
@@ -140,14 +132,10 @@ def summarize_ref(
     *,
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> str:
     return document_chat.summarize_ref(
         artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
 
 
@@ -157,16 +145,12 @@ def answer_question_about_ref(
     source_ref_id: str,
     question: str,
     llm_gateway: DocumentLlmPort | None,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> str:
     return document_chat.answer_question_about_ref(
         artifact_repository,
         source_ref_id=source_ref_id,
         question=question,
         llm_gateway=llm_gateway,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
 
 
@@ -174,12 +158,8 @@ def build_context_by_ref(
     *,
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> str:
     return document_chat.build_context_by_ref(
         artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )

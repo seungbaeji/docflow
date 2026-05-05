@@ -15,7 +15,8 @@ Main complexity:
 Use this dependency shape:
 
 ```text
-inbound -> workflow -> usecases
+inbound -> usecases
+usecases -> workflow
 usecases -> core
 usecases -> outbound
 ```
@@ -27,6 +28,8 @@ Rules:
 - `inbound` is entrypoint only
 - `workflow` is its own layer, not part of `inbound`
 - `tools` is its own layer for agent/tool-calling actions, not part of `workflow`
+- `types` must not import any non-types layer
+- `workflow` must not import `bootstrap`
 
 ## Workflow
 
@@ -51,12 +54,13 @@ Rules:
 ### inbound
 
 - FastAPI, Streamlit, CLI entrypoints
-- call workflow or usecases only
+- call usecases only
 - no business logic
 
 ### usecases
 
 - orchestrate core + outbound
+- may invoke workflow when stateful orchestration is needed
 - no business rules
 - no parsing logic
 - no direct file/automation details
@@ -91,7 +95,8 @@ Rules:
 
 - provide the default DI container
 - build settings, repositories, gateways, workflow runtime, and usecases in one place
-- entrypoints should use bootstrap wiring rather than instantiating adapters inline
+- entrypoints and usecase facades should use bootstrap wiring rather than instantiating adapters inline
+- workflow must consume explicit dependencies, not the container itself
 
 ### types
 
@@ -115,6 +120,28 @@ Rules:
 - core uses structured types only
 - outbound handles bytes/files/external SDKs
 - workbook, worksheet, dataframe, OCR text blobs, mail attachments, UI objects must not escape outbound
+
+## Workflow Direction Rules
+
+- `workflow/process/*` handles process graph/state/node orchestration only
+- `workflow/chat/*` handles chat prep workflow and agent wiring only
+- `workflow/agent/*` handles tool-calling loop only
+- `workflow/document/*` contains document workflow helpers only
+
+`workflow/document/*` must stay one-directional:
+
+```text
+workflow/document/{source,parse,chat,mail} -> workflow/document/support
+```
+
+Rules:
+
+- `support.py` is the lowest helper module in `workflow/document`
+- `source`, `parse`, `chat`, `mail` may depend on `support`
+- `source`, `parse`, `chat`, `mail` must not depend on each other
+- `chat` must not re-run parse logic; prep workflow must guarantee prepared artifacts first
+- tools must consume prepared explicit context only
+- tools must not select current document, upload, or session state
 
 ## Testing
 

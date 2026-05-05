@@ -69,8 +69,6 @@ def respond_to_chat(
                 source_ref_id=tool_context.source_ref_id,
                 question=message,
                 llm_gateway=llm_gateway,
-                pdf_client=pdf_client,
-                pdf_parser=pdf_parser,
             )
 
     document_context = None
@@ -78,8 +76,6 @@ def respond_to_chat(
         document_context = build_context_by_ref(
             artifact_repository=artifact_repository,
             source_ref_id=current_source_ref,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
         )
     return respond_in_chat(
         message=message,
