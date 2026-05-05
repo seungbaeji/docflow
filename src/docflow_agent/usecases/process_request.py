@@ -1,3 +1,10 @@
+"""Usecase facade for the `/process` API surface.
+
+This module is the application-facing entrypoint for process-style requests.
+It assembles the workflow from explicit dependencies and returns workflow
+state without exposing workflow construction details to `inbound`.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -29,6 +36,7 @@ def process_request(
     user_input: str,
     human_decisions: list[HumanDecision] | None,
 ) -> WorkflowState:
+    """Run the process workflow for a single document-processing request."""
     workflow = create_workflow(
         artifact_repository=artifact_repository,
         workflow_run_store=workflow_run_store,

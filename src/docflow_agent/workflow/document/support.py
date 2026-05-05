@@ -1,3 +1,10 @@
+"""Low-level helpers shared by workflow document modules.
+
+This module is the bottom layer inside `workflow.document`. Other
+`workflow.document.*` modules may depend on this file, but should not depend
+on each other directly.
+"""
+
 from __future__ import annotations
 
 from dataclasses import asdict

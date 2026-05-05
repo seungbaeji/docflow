@@ -1,3 +1,10 @@
+"""Tool layer entrypoints for agent-style interactions.
+
+Tools expose a small, explicit action surface to the agent runtime.
+They consume prepared context from `workflow` and should not own session
+selection or state transitions.
+"""
+
 from docflow_agent.tools.document import (
     DOCUMENT_AGENT_TOOLS,
     answer_about_current_document,

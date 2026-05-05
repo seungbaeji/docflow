@@ -1,3 +1,10 @@
+"""Agent runtime for prompt-started tool-calling.
+
+The runtime drives the conversation loop between the LLM and internal tools.
+It does not select the current document itself; it consumes prepared tool
+context supplied by the workflow layer.
+"""
+
 from __future__ import annotations
 
 import json
@@ -19,6 +26,8 @@ from docflow_agent.workflow.agent.tool_runner import invoke_tool, serialize_tool
 
 
 class AgentRuntime:
+    """Run a bounded tool-calling loop over prepared document context."""
+
     def __init__(
         self,
         *,
@@ -38,6 +47,7 @@ class AgentRuntime:
         self.max_steps = max_steps
 
     def run(self, *, prompt: str) -> DocumentAgentResult:
+        """Execute the agent loop until a final answer or step limit is reached."""
         history: list[ChatTurn] = []
         tool_traces: list[DocumentAgentToolTrace] = []
         current_message = prompt
@@ -96,5 +106,6 @@ class AgentRuntime:
         raise DocumentAgentRuntimeError("agent exceeded the maximum number of tool-calling steps")
 
     def _build_system_prompt(self) -> str:
+        """Append available tool descriptions to the configured system prompt."""
         tool_lines = "\n".join(f"- {tool.name}: {tool.description}" for tool in self.tools)
         return f"{self.system_prompt}\n\nAvailable tools:\n{tool_lines}"

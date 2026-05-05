@@ -1,3 +1,10 @@
+"""Workflow assembly helpers for process-style document requests.
+
+These helpers bind explicit dependencies to the process workflow graph.
+They are part of the workflow layer, but they consume only already-assembled
+dependencies and never reach back into `bootstrap`.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -23,6 +30,7 @@ def build_runtime(
     workflow_run_store: WorkflowRunStore,
     workflow_queue: WorkflowQueuePort,
 ) -> WorkflowRuntime:
+    """Create the small runtime object used by process workflow nodes."""
     return WorkflowRuntime(
         workflow_run_store=workflow_run_store,
         workflow_queue=workflow_queue,
@@ -40,6 +48,7 @@ def create_workflow(
     pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
+    """Build a compiled process workflow from explicit dependencies."""
     active_runtime = workflow_runtime or build_runtime(
         workflow_run_store=workflow_run_store,
         workflow_queue=workflow_queue,

@@ -1,3 +1,10 @@
+"""Workflow assembly helpers for document-aware chat.
+
+This module hides the wiring needed to prepare document context for the agent
+runtime. It builds the prep workflow, loads prepared payloads, and exposes
+small helpers that higher layers can call without knowing the internal graph.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -32,6 +39,7 @@ def create_prep_workflow(
     pdf_client: OpenDataLoaderPdfClient | None,
     pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> object:
+    """Build the prep workflow that turns an upload into prepared artifacts."""
     return build_workflow(
         artifact_repository=artifact_repository,
         session_document_store=session_document_store,
@@ -73,6 +81,7 @@ def prepare_context(
     session_id: str,
     message: str,
 ) -> DocumentAgentToolContext:
+    """Prepare explicit tool context for a document-aware chat turn."""
     prep_workflow = create_prep_workflow(
         artifact_repository=artifact_repository,
         session_document_store=session_document_store,
@@ -108,6 +117,7 @@ def build_runtime(
     runtime_store: BaseStore | None,
     tool_context: DocumentAgentToolContext,
 ) -> AgentRuntime:
+    """Create the agent runtime used after document prep completes."""
     return AgentRuntime(
         llm_gateway=llm_gateway,
         tools=DOCUMENT_AGENT_TOOLS,
@@ -122,6 +132,7 @@ def build_payload(
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
 ) -> DocumentPayload:
+    """Load the prepared document payload for one source artifact."""
     return document_chat.build_payload(
         artifact_repository,
         source_ref_id=source_ref_id,
@@ -133,6 +144,7 @@ def summarize_ref(
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
 ) -> str:
+    """Render a deterministic summary for a prepared source artifact."""
     return document_chat.summarize_ref(
         artifact_repository,
         source_ref_id=source_ref_id,
@@ -146,6 +158,7 @@ def answer_question_about_ref(
     question: str,
     llm_gateway: DocumentLlmPort | None,
 ) -> str:
+    """Answer a document question using a prepared source artifact."""
     return document_chat.answer_question_about_ref(
         artifact_repository,
         source_ref_id=source_ref_id,
@@ -159,6 +172,7 @@ def build_context_by_ref(
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
 ) -> str:
+    """Build chat context text from a prepared source artifact."""
     return document_chat.build_context_by_ref(
         artifact_repository,
         source_ref_id=source_ref_id,

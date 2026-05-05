@@ -1,3 +1,10 @@
+"""Usecase facade for chat requests.
+
+This module decides whether a chat request should stay on the general chat
+path or switch to the document-aware agent path. It keeps `inbound` thin by
+hiding workflow preparation and fallback behavior behind one function.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -38,6 +45,7 @@ def respond_to_chat(
     session_id: str,
     message: str,
 ) -> str:
+    """Respond to a chat message using either general chat or document chat."""
     current_source_ref = session_document_store.get_current_source_ref(session_id)
     current_upload_id = session_document_store.get_current_upload_id(session_id)
 

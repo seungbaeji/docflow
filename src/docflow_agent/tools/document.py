@@ -1,3 +1,9 @@
+"""Document tools exposed to the internal agent runtime.
+
+These tools do not perform workflow preparation or session lookup.
+They read only from explicit, already-prepared `DocumentAgentToolContext`.
+"""
+
 from __future__ import annotations
 
 from langchain.tools import BaseTool, ToolRuntime, tool

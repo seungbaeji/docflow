@@ -1,3 +1,10 @@
+"""Usecase facade for upload staging.
+
+Uploads are staged as external files first. This facade writes the raw file,
+records upload metadata, and updates the current session selection without
+creating a source artifact yet.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,6 +26,7 @@ def stage_upload(
     content_type: str,
     raw_file: bytes,
 ) -> UploadResponse:
+    """Persist an uploaded file into staging storage and session context."""
     resolved_session_id = session_id or str(uuid4())
     resolved_upload_dir = Path(upload_dir).expanduser()
     resolved_upload_dir.mkdir(parents=True, exist_ok=True)
