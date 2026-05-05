@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import Field, model_validator
 
 from docflow_agent.types.boundary.base import BoundaryModel
-from docflow_agent.workflow.state import HumanDecision
+from docflow_agent.types.value.workflow import HumanDecision
 
 
 class HumanDecisionRequest(BoundaryModel):

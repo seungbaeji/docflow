@@ -7,6 +7,7 @@ from typing import Any, cast
 from langgraph.graph import END, START, StateGraph
 
 from docflow_agent.types.value.results import UsecaseOutcome
+from docflow_agent.types.value.workflow import HumanDecision
 from docflow_agent.workflow.nodes import (
     WorkflowRuntime,
     analyze_node,
@@ -23,7 +24,7 @@ from docflow_agent.workflow.nodes import (
     unknown_node,
 )
 from docflow_agent.workflow.process.routing import route_mail_approval, route_selected_flow
-from docflow_agent.workflow.state import HumanDecision, WorkflowState
+from docflow_agent.workflow.state import WorkflowState
 
 
 def build_workflow(

@@ -3,22 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from docflow_agent.bootstrap import build_container
-from docflow_agent.workflow.process.factory import create_workflow
-
-
-def build_document_workflow_graph() -> Any:
-    container = build_container()
-    workflow = create_workflow(container)
-    return workflow.get_graph()
-
 
 def export_document_workflow_graph(
     *,
+    graph: Any,
     output_path: Path,
     format: str,
 ) -> Path:
-    graph = build_document_workflow_graph()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if format == "mermaid":

@@ -14,7 +14,7 @@ from docflow_agent.usecases.document.mail import (
     build_mail_draft_payload,
     build_mail_result_payload,
 )
-from docflow_agent.usecases.document.parse import parse_source_payload
+from docflow_agent.usecases.document.parse import parse_pdf_document_payload, parse_source_payload
 from docflow_agent.usecases.document.source import (
     build_source_payload_from_prompt,
     build_source_payload_from_upload,
@@ -33,5 +33,6 @@ __all__ = [
     "categorize_unit_payloads",
     "combine_unit_payloads",
     "parse_source_payload",
+    "parse_pdf_document_payload",
     "render_summary",
 ]

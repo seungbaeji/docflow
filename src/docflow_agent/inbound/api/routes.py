@@ -26,12 +26,9 @@ from docflow_agent.types.boundary.api import (
     ProcessRequest,
     UploadResponse,
 )
-from docflow_agent.workflow.requests import (
-    process_request,
-    respond_to_chat,
-    stage_upload,
-)
-from docflow_agent.workflow.process import state_to_response
+from docflow_agent.usecases.process_request import process_request, state_to_response
+from docflow_agent.usecases.respond_to_chat import respond_to_chat
+from docflow_agent.usecases.stage_upload import stage_upload
 
 
 router = APIRouter()
@@ -62,7 +59,13 @@ def process(request: ProcessRequest, app_request: Request) -> dict[str, object]:
     try:
         container = app_request.app.state.container
         state = process_request(
-            container=container,
+            artifact_repository=container.artifact_repository,
+            workflow_run_store=container.workflow_run_store,
+            workflow_queue=container.workflow_queue,
+            vector_store=container.vector_store,
+            llm_gateway=container.llm_gateway,
+            pdf_client=container.pdf_client,
+            pdf_parser=container.pdf_parser,
             user_input=request.user_input,
             human_decisions=request.to_workflow_human_decisions(),
         )
@@ -93,7 +96,9 @@ async def upload_document(app_request: Request) -> UploadResponse:
 
     container = app_request.app.state.container
     return stage_upload(
-        container=container,
+        artifact_repository=container.artifact_repository,
+        session_document_store=container.session_document_store,
+        upload_dir=container.settings.app.upload_dir,
         session_id=app_request.headers.get("X-Session-Id"),
         file_name=_sanitize_upload_name(_decode_upload_name(app_request.headers)),
         content_type=app_request.headers.get("Content-Type", "application/octet-stream"),
@@ -107,7 +112,15 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
         container = app_request.app.state.container
         session_id = request.session_id or str(uuid4())
         message = respond_to_chat(
-            container=container,
+            artifact_repository=container.artifact_repository,
+            llm_gateway=container.llm_gateway,
+            chat_history_store=container.chat_history_store,
+            runtime_store=container.runtime_store,
+            session_document_store=container.session_document_store,
+            workflow_run_store=container.workflow_run_store,
+            vector_store=container.vector_store,
+            pdf_client=container.pdf_client,
+            pdf_parser=container.pdf_parser,
             session_id=session_id,
             message=request.message,
         )

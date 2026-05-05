@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from docflow_agent.workflow.state import FlowName, HumanDecision, WorkflowState
+from docflow_agent.types.value.workflow import FlowName, HumanDecision
+from docflow_agent.workflow.state import WorkflowState
 
 _DOCUMENT_KEYWORDS = ("excel", "엑셀", "document", "문서", "pdf", "image", "이미지", "settlement")
 _MAIL_KEYWORDS = ("mail", "메일", "email", "send", "보내")
@@ -32,4 +33,3 @@ def get_human_decision(state: WorkflowState, decision_id: str) -> HumanDecision 
         if decision["decision_id"] == decision_id:
             return decision
     return None
-

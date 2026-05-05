@@ -3,9 +3,8 @@ from __future__ import annotations
 import argparse
 
 from docflow_agent.bootstrap import get_container
-from docflow_agent.workflow.process import invoke_workflow, state_to_response
-from docflow_agent.workflow.process.factory import create_workflow
-from docflow_agent.workflow.state import HumanDecision
+from docflow_agent.types.value.workflow import HumanDecision
+from docflow_agent.usecases.process_request import process_request, state_to_response
 
 
 def _build_human_decisions(approve_send_mail: str | None) -> list[HumanDecision] | None:
@@ -39,10 +38,15 @@ def main() -> None:
     args = parser.parse_args()
 
     container = get_container()
-    workflow = create_workflow(container)
-    state = invoke_workflow(
+    state = process_request(
+        artifact_repository=container.artifact_repository,
+        workflow_run_store=container.workflow_run_store,
+        workflow_queue=container.workflow_queue,
+        vector_store=container.vector_store,
+        llm_gateway=container.llm_gateway,
+        pdf_client=container.pdf_client,
+        pdf_parser=container.pdf_parser,
         user_input=args.user_input,
-        workflow=workflow,
         human_decisions=_build_human_decisions(args.approve_send_mail),
     )
     print(state_to_response(state))

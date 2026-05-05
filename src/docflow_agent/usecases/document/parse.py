@@ -1,24 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from pathlib import Path
-
-from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient, extract_pdf_document
-from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument
 from docflow_agent.types.value.document import ParsedDocumentPayload, ParsedUnitPayload, SourcePayload
-
-PdfParser = Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument]
 
 
 def parse_source_payload(
     source: SourcePayload,
-    *,
-    pdf_client: OpenDataLoaderPdfClient | None = None,
-    pdf_parser: PdfParser = extract_pdf_document,
 ) -> tuple[ParsedDocumentPayload | None, list[ParsedUnitPayload]]:
     if source.source_type == "pdf":
-        return _parse_pdf_source(source, pdf_client=pdf_client, pdf_parser=pdf_parser)
+        return None, [
+            ParsedUnitPayload(
+                name="pdf_document",
+                prompt=source.prompt,
+            )
+        ]
 
     unit_names = (
         ["settlement_sheet", "mail_targets"]
@@ -28,26 +23,11 @@ def parse_source_payload(
     return None, [ParsedUnitPayload(name=name, prompt=source.prompt) for name in unit_names]
 
 
-def _parse_pdf_source(
+def parse_pdf_document_payload(
     source: SourcePayload,
     *,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: PdfParser,
+    parsed_document: PdfDocument,
 ) -> tuple[ParsedDocumentPayload | None, list[ParsedUnitPayload]]:
-    if source.file_path is None or pdf_client is None:
-        return None, [
-            ParsedUnitPayload(
-                name="pdf_document",
-                prompt=source.prompt,
-            )
-        ]
-
-    file_info = FileInfo(
-        name=source.file_name or Path(source.file_path).name,
-        path=source.file_path,
-        content_type=source.content_type or "application/pdf",
-    )
-    parsed_document = pdf_parser(pdf_client, file_info)
     document_payload = ParsedDocumentPayload(
         file_name=parsed_document.file_name,
         page_count=parsed_document.page_count,

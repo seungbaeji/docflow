@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import asdict
+from pathlib import Path
 
 from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.ports.repositories import ArtifactRepository
@@ -10,6 +11,7 @@ from docflow_agent.types.boundary.external import PdfDocument
 from docflow_agent.usecases.document import (
     categorize_unit_payloads,
     combine_unit_payloads,
+    parse_pdf_document_payload,
     parse_source_payload,
 )
 from docflow_agent.workflow.document.support import (
@@ -39,11 +41,18 @@ def parse_units(
     if existing_refs:
         return existing_refs
 
-    parsed_document, parsed_units = parse_source_payload(
-        source,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
-    )
+    parsed_document, parsed_units = parse_source_payload(source)
+    if source.source_type == "pdf" and source.file_path is not None and pdf_client is not None:
+        file_info = FileInfo(
+            name=source.file_name or Path(source.file_path).name,
+            path=source.file_path,
+            content_type=source.content_type or "application/pdf",
+        )
+        extracted_pdf = pdf_parser(pdf_client, file_info)
+        parsed_document, parsed_units = parse_pdf_document_payload(
+            source,
+            parsed_document=extracted_pdf,
+        )
     parsed_ref_id: str | None = None
     if parsed_document is not None:
         parsed_ref_id = artifact_repository.save(

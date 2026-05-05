@@ -1,10 +1,20 @@
 from __future__ import annotations
 
-from docflow_agent.bootstrap import AppContainer
-from docflow_agent.config.prompt import (
-    get_chat_system_prompt,
-)
+from collections.abc import Callable
+
+from langgraph.store.base import BaseStore
+
+from docflow_agent.config.prompt import get_chat_system_prompt
 from docflow_agent.errors import DocumentAgentRuntimeError
+from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
+from docflow_agent.ports.chat_history import ChatHistoryPort
+from docflow_agent.ports.llm import DocumentLlmPort
+from docflow_agent.ports.repositories import ArtifactRepository
+from docflow_agent.ports.rdbms import WorkflowRunStore
+from docflow_agent.ports.session_context import SessionDocumentStore
+from docflow_agent.ports.vector_store import VectorStorePort
+from docflow_agent.types.boundary.common import FileInfo
+from docflow_agent.types.boundary.external import PdfDocument
 from docflow_agent.usecases.chat import respond_in_chat
 from docflow_agent.workflow.chat.factory import (
     answer_question_about_ref,
@@ -16,41 +26,66 @@ from docflow_agent.workflow.chat.factory import (
 
 def respond_to_chat(
     *,
-    container: AppContainer,
+    artifact_repository: ArtifactRepository,
+    llm_gateway: DocumentLlmPort,
+    chat_history_store: ChatHistoryPort,
+    runtime_store: BaseStore | None,
+    session_document_store: SessionDocumentStore,
+    workflow_run_store: WorkflowRunStore,
+    vector_store: VectorStorePort,
+    pdf_client: OpenDataLoaderPdfClient | None,
+    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
     session_id: str,
     message: str,
 ) -> str:
-    current_source_ref = container.session_document_store.get_current_source_ref(session_id)
-    current_upload_id = container.session_document_store.get_current_upload_id(session_id)
+    current_source_ref = session_document_store.get_current_source_ref(session_id)
+    current_upload_id = session_document_store.get_current_upload_id(session_id)
 
     if (current_source_ref is not None or current_upload_id is not None) and _requires_document_agent(
         message
     ):
         tool_context = prepare_context(
-            container,
+            artifact_repository=artifact_repository,
+            session_document_store=session_document_store,
+            workflow_run_store=workflow_run_store,
+            vector_store=vector_store,
+            pdf_client=pdf_client,
+            pdf_parser=pdf_parser,
             session_id=session_id,
             message=message,
         )
-        document_agent_runtime = build_runtime(container, tool_context=tool_context)
+        runtime = build_runtime(
+            llm_gateway=llm_gateway,
+            runtime_store=runtime_store,
+            tool_context=tool_context,
+        )
         try:
-            return document_agent_runtime.run(prompt=message).answer
+            return runtime.run(prompt=message).answer
         except DocumentAgentRuntimeError:
             if _requires_document_processing(message):
                 return tool_context.document_summary
             return answer_question_about_ref(
-                container,
+                artifact_repository=artifact_repository,
                 source_ref_id=tool_context.source_ref_id,
                 question=message,
+                llm_gateway=llm_gateway,
+                pdf_client=pdf_client,
+                pdf_parser=pdf_parser,
             )
 
     document_context = None
     if current_source_ref is not None:
-        document_context = build_context_by_ref(container, current_source_ref)
+        document_context = build_context_by_ref(
+            artifact_repository=artifact_repository,
+            source_ref_id=current_source_ref,
+            pdf_client=pdf_client,
+            pdf_parser=pdf_parser,
+        )
     return respond_in_chat(
         message=message,
         session_id=session_id,
-        llm_gateway=container.llm_gateway,
-        chat_history_store=container.chat_history_store,
+        llm_gateway=llm_gateway,
+        chat_history_store=chat_history_store,
         system_prompt=get_chat_system_prompt(),
         document_context=document_context,
     )

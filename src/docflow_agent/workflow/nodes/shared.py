@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Literal
 
-from docflow_agent.workflow.state import ArtifactKind, ArtifactRef, WorkflowState
+from docflow_agent.types.value.workflow import ArtifactKind, ArtifactRef
+from docflow_agent.workflow.state import WorkflowState
 
 
 ArtifactRefListKey = Literal[
