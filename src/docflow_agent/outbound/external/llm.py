@@ -10,12 +10,31 @@ from docflow_agent.errors import (
     MissingLlmDependencyError,
     UnsupportedLlmProviderError,
 )
+from docflow_agent.ports.llm import DocumentLlmPort
 from docflow_agent.settings import Settings, get_settings
 
 
 class LlmClient:
     def __init__(self, chat_model: BaseChatModel) -> None:
         self.chat_model = chat_model
+
+
+class ExternalDocumentLlmGateway(DocumentLlmPort):
+    def __init__(self, client: LlmClient | None = None) -> None:
+        self._client = client
+
+    def summarize_document(
+        self,
+        payload: dict[str, object],
+    ) -> str:
+        return summarize_document(payload=payload, client=self._client)
+
+    def ask_document_question(
+        self,
+        question: str,
+        payload: dict[str, object],
+    ) -> str:
+        return ask_document_question(question=question, payload=payload, client=self._client)
 
 
 def build_llm_client(settings: Settings | None = None) -> LlmClient:

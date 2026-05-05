@@ -17,8 +17,9 @@ usecases -> outbound
 - `workflow`: state/context를 관리하며 여러 usecase를 연결하는 상위 실행 흐름. 현재는 LangGraph로 실행
 - `core`: source kind 판단, unit 파싱, category 판단, bundle 결합, 분석, 규칙, edit intent 생성
 - `outbound`: ECM, files, mail, SAP, OCR, LLM, DB, Excel automation, RPA, COM 같은 외부 연동과 실행
-  - `outbound/external`: ECM, SAP, mail, OCR, storage, DB, LLM 같은 외부 시스템 연동
-  - `outbound/testing`: in-memory repository 같은 테스트/로컬 개발용 어댑터
+  - `outbound/external`: ECM, SAP, mail, OCR, storage, LLM 같은 외부 시스템 연동
+  - `outbound/testing`: in-memory repository, rdbms, vector store, queue, llm 같은 테스트/로컬 개발용 어댑터
+- `ports`: repository, llm, rdbms, vector store, queue 같은 usecase/workflow 경계
 - `types`: source, unit, bundle, external record, edit intent, result 같은 실데이터 구조
 
 핵심 개념도 바뀌었습니다.

@@ -40,3 +40,25 @@ class ProcessingRecord:
     status: str
     artifact_refs: list[str]
     metadata: dict[str, object]
+
+
+@dataclass(frozen=True)
+class VectorStoreDocument:
+    document_id: str
+    text: str
+    metadata: dict[str, object]
+
+
+@dataclass(frozen=True)
+class VectorSearchHit:
+    document_id: str
+    score: float
+    metadata: dict[str, object]
+
+
+@dataclass(frozen=True)
+class QueueMessage:
+    message_id: str
+    topic: str
+    payload: dict[str, object]
+    metadata: dict[str, object]

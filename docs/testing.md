@@ -27,6 +27,7 @@
 - business rule과 category 판단을 집중적으로 테스트
 
 예시:
+
 - `tests/unit/core/test_category_invoice.py`
 - `tests/unit/core/test_invoice_rule.py`
 - `tests/unit/core/test_edit_invoice.py`
@@ -36,11 +37,13 @@
 `usecases`는 orchestration만 담당하므로, 내부에서 호출하는 outbound 함수를 `monkeypatch`로 바꿔 흐름을 검증합니다.
 
 검증 대상:
+
 - 어떤 outbound를 호출하는지
 - core 결과를 어떻게 조합하는지
 - unsupported flow에서 어떤 에러를 올리는지
 
 예시:
+
 - `tests/unit/usecases/test_process_source.py`
 
 이 테스트에서는 `docflow_agent.usecases.process_source` 내부의 `load_spreadsheet_source`를 직접 바꿔 끼웁니다. 별도 port나 abstract adapter 없이도 흐름 검증이 가능합니다.
@@ -58,6 +61,7 @@
 - human-in-the-loop pending / approve / reject / resume
 
 예시:
+
 - `tests/unit/workflow/test_route_flow.py`
 - `tests/unit/workflow/test_state_safety.py`
 - `tests/unit/workflow/test_workflow_document_to_mail.py`
@@ -69,15 +73,20 @@
 `outbound`는 진짜 외부 시스템 대신 로컬 fake와 monkeypatch를 사용합니다.
 
 패턴:
+
 - HTTP 호출: `urlopen` monkeypatch
 - 파일 처리: `tmp_path`
 - 응답 객체: 작은 fake class 직접 작성
 - automation 실행기: strategy와 결과 값 검증
 
 예시:
+
 - `tests/integration/outbound/test_ecm.py`
 - `tests/integration/outbound/test_llm.py`
 - `tests/integration/outbound/test_document_automation.py`
+- `tests/integration/outbound/test_rdbms.py`
+- `tests/integration/outbound/test_vector_store.py`
+- `tests/integration/outbound/test_queue.py`
 
 즉 outbound는 "provider를 인터페이스로 감싸서 테스트"하는 것이 아니라 "외부 부작용을 로컬 fake로 바꿔서 테스트"합니다.
 

@@ -10,11 +10,13 @@ from docflow_agent.errors import (
     UnsupportedLlmProviderError,
 )
 from docflow_agent.outbound.external.llm import (
+    ExternalDocumentLlmGateway,
     LlmClient,
     ask_document_question,
     build_llm_client,
     summarize_document,
 )
+from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.settings import Settings
 
 
@@ -47,6 +49,26 @@ def test_ask_document_question_uses_client_output() -> None:
     )
 
     assert answer == "The amount is 1000."
+
+
+def test_external_document_llm_gateway_delegates_to_client() -> None:
+    gateway = ExternalDocumentLlmGateway(
+        client=LlmClient(chat_model=StubChatModel("gateway summary"))  # type: ignore[arg-type]
+    )
+
+    assert gateway.summarize_document({"amount": 1000}) == "gateway summary"
+
+
+def test_stub_document_llm_gateway_tracks_requests() -> None:
+    gateway = StubDocumentLlmGateway(
+        summary_response="summary",
+        answer_response="answer",
+    )
+
+    assert gateway.summarize_document({"document_id": "doc-001"}) == "summary"
+    assert gateway.ask_document_question("What is this?", {"document_id": "doc-001"}) == "answer"
+    assert gateway.summarized_payloads == [{"document_id": "doc-001"}]
+    assert gateway.asked_questions == [("What is this?", {"document_id": "doc-001"})]
 
 
 def test_settings_defaults_stub_provider() -> None:
