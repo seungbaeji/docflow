@@ -127,7 +127,7 @@ UI는 현재 Streamlit 기반의 local chat app입니다.
 - system prompt는 `src/docflow_agent/config/prompt.py`에서 관리
 - 세션별 대화 히스토리 유지
 
-브라우저 UI는 현재 FastAPI backend를 프록시처럼 호출하지 않고, 같은 bootstrap container와 workflow/chat usecase를 직접 실행합니다. 즉 API와 UI는 같은 wiring을 공유하지만 실행 경로는 서로 독립적입니다.
+브라우저 UI는 FastAPI `POST /chat` endpoint를 호출하는 thin client입니다. 따라서 UI를 쓰려면 API 서버가 먼저 떠 있어야 합니다. 기본 연결 주소는 `DOCFLOW_AGENT_API__PUBLIC_BASE_URL`이며, 기본값은 `http://127.0.0.1:8000`입니다.
 
 현재 API는 두 surface를 제공합니다.
 

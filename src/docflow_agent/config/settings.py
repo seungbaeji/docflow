@@ -18,6 +18,7 @@ class ApiSettings(BaseModel):
     host: str = "127.0.0.1"
     port: int = 8000
     reload: bool = False
+    public_base_url: str = "http://127.0.0.1:8000"
 
 
 class LlmSettings(BaseModel):
