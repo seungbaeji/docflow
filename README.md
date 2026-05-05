@@ -39,6 +39,12 @@ core는 구조화된 value object만 다루고 outbound를 전혀 모릅니다. 
 
 `types/value`는 내부 value object 전용이고 모두 `frozen dataclass`를 기본으로 합니다. `types/boundary`는 inbound/outbound 경계에서 오가는 `pydantic` DTO를 담고, 외부 입력은 신뢰하지 않는다는 전제로 검증과 정규화를 먼저 수행한 뒤 workflow, usecase, core에는 작은 값 객체만 넘기는 방향을 따릅니다.
 
+`dataclass` 사용 규칙도 고정합니다.
+
+- `dataclass`는 데이터 모델 전용
+- `dataclass`는 `types/*` 안에서만 사용
+- `usecases`, `workflow`, `outbound`, `bootstrap`, `inbound`의 실행 객체는 일반 class 또는 function 사용
+
 ## Workflow
 
 이 프로젝트에서 `workflow`는 특정 graph library 이름이 아니라, 요청 하나의 실행 문맥을 관리하는 오케스트레이션 객체를 뜻합니다.

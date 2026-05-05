@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from docflow_agent.errors import OcrIntegrationError
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import OcrPage
 
 
-@dataclass(frozen=True)
 class OcrClient:
-    engine_name: str = "stub"
+    def __init__(self, *, engine_name: str = "stub") -> None:
+        self.engine_name = engine_name
 
 
 def extract_text_pages(client: OcrClient, file_info: FileInfo) -> list[OcrPage]:

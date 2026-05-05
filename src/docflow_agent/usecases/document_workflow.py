@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
@@ -12,12 +11,7 @@ from docflow_agent.ports.vector_store import VectorStorePort
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument
 from docflow_agent.types.boundary.external import WorkflowRunRecord, VectorStoreDocument
-
-
-@dataclass(frozen=True)
-class UsecaseOutcome:
-    ref_id: str
-    message: str
+from docflow_agent.types.value.results import UsecaseOutcome
 
 
 def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
@@ -33,14 +27,23 @@ def _extract_pdf_path(user_input: str) -> str | None:
     return None
 
 
-@dataclass(frozen=True)
 class RepositoryBackedDocumentUsecases:
-    artifact_repository: ArtifactRepository
-    llm_gateway: DocumentLlmPort | None = None
-    workflow_run_store: WorkflowRunStore | None = None
-    vector_store: VectorStorePort | None = None
-    pdf_client: OpenDataLoaderPdfClient | None = None
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument] = extract_pdf_document
+    def __init__(
+        self,
+        *,
+        artifact_repository: ArtifactRepository,
+        llm_gateway: DocumentLlmPort | None = None,
+        workflow_run_store: WorkflowRunStore | None = None,
+        vector_store: VectorStorePort | None = None,
+        pdf_client: OpenDataLoaderPdfClient | None = None,
+        pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument] = extract_pdf_document,
+    ) -> None:
+        self.artifact_repository = artifact_repository
+        self.llm_gateway = llm_gateway
+        self.workflow_run_store = workflow_run_store
+        self.vector_store = vector_store
+        self.pdf_client = pdf_client
+        self.pdf_parser = pdf_parser
 
     def load_source(self, user_input: str) -> str:
         pdf_path = _extract_pdf_path(user_input)
@@ -105,25 +108,35 @@ class RepositoryBackedDocumentUsecases:
         bundle_ref_id = self.combine_bundle(categorized_unit_ref_ids)
         return self.analyze(bundle_ref_id)
 
+    def summarize_source_ref(self, source_ref_id: str) -> str:
+        outcome = self.process_source_ref(source_ref_id)
+        payload = self.build_document_payload(
+            source_ref_id=source_ref_id,
+            analysis_ref_id=outcome.ref_id,
+        )
+        return self._render_document_summary(payload)
+
+    def answer_question_about_source_ref(
+        self,
+        source_ref_id: str,
+        question: str,
+    ) -> str:
+        if self.llm_gateway is None:
+            return self.summarize_source_ref(source_ref_id)
+        payload = self.build_document_payload(source_ref_id=source_ref_id)
+        return self.llm_gateway.ask_document_question(question=question, payload=payload)
+
     def build_document_context(self, source_ref_id: str) -> str:
-        source = self.artifact_repository.load("source", source_ref_id)
-        parsed_unit_ref_ids = self._get_existing_unit_refs(source_ref_id=source_ref_id, stage="parsed")
-        if not parsed_unit_ref_ids:
-            parsed_unit_ref_ids = self.parse_units(source_ref_id)
-
-        unit_summaries: list[str] = []
-        for unit_ref_id in parsed_unit_ref_ids[:3]:
-            unit = self.artifact_repository.load("unit", unit_ref_id)
-            content = unit.get("content")
-            if isinstance(content, str) and content.strip():
-                unit_summaries.append(content.strip())
-            else:
-                unit_summaries.append(str(unit.get("name", "document_unit")))
-
+        payload = self.build_document_payload(source_ref_id=source_ref_id)
+        raw_unit_summaries = payload["unit_summaries"]
+        unit_summaries = raw_unit_summaries if isinstance(raw_unit_summaries, list) else []
         return "\n".join(
             [
-                f"source_type={source.get('source_type', 'unknown')}",
-                f"file_path={source.get('file_path')}",
+                f"source_type={payload['source_type']}",
+                f"file_name={payload['file_name']}",
+                f"file_path={payload['file_path']}",
+                f"page_count={payload['page_count']}",
+                f"unit_count={payload['unit_count']}",
                 "unit_summaries:",
                 *[f"- {summary}" for summary in unit_summaries],
             ]
@@ -399,4 +412,94 @@ class RepositoryBackedDocumentUsecases:
         return self.artifact_repository.find(
             "unit",
             {"source_ref_id": source_ref_id, "stage": stage},
+        )
+
+    def build_document_payload(
+        self,
+        *,
+        source_ref_id: str,
+        analysis_ref_id: str | None = None,
+    ) -> dict[str, object]:
+        source = self.artifact_repository.load("source", source_ref_id)
+        parsed_unit_ref_ids = self._get_existing_unit_refs(source_ref_id=source_ref_id, stage="parsed")
+        if not parsed_unit_ref_ids:
+            parsed_unit_ref_ids = self.parse_units(source_ref_id)
+
+        unit_summaries: list[str] = []
+        for unit_ref_id in parsed_unit_ref_ids[:3]:
+            unit = self.artifact_repository.load("unit", unit_ref_id)
+            content = unit.get("content")
+            if isinstance(content, str) and content.strip():
+                summary = content.strip()
+            else:
+                summary = str(unit.get("name", "document_unit"))
+            unit_summaries.append(summary[:400])
+
+        pdf_parsed_ref_ids = self.artifact_repository.find(
+            "analysis",
+            {"source_ref_id": source_ref_id, "stage": "pdf_parsed"},
+        )
+        parsed_document = (
+            self.artifact_repository.load("analysis", pdf_parsed_ref_ids[-1])
+            if pdf_parsed_ref_ids
+            else None
+        )
+        analysis = (
+            self.artifact_repository.load("analysis", analysis_ref_id)
+            if analysis_ref_id is not None
+            else None
+        )
+        page_count = 0
+        markdown_excerpt = None
+        if isinstance(parsed_document, dict):
+            raw_page_count = parsed_document.get("page_count")
+            if isinstance(raw_page_count, int):
+                page_count = raw_page_count
+            raw_markdown = parsed_document.get("markdown")
+            if isinstance(raw_markdown, str) and raw_markdown.strip():
+                markdown_excerpt = raw_markdown.strip()[:800]
+
+        return {
+            "source_ref_id": source_ref_id,
+            "source_type": str(source.get("source_type", "unknown")),
+            "file_name": str(source.get("file_name") or Path(str(source.get("file_path") or "")).name),
+            "file_path": str(source.get("file_path") or ""),
+            "page_count": page_count,
+            "unit_count": len(parsed_unit_ref_ids),
+            "unit_summaries": unit_summaries,
+            "parsed_unit_ref_ids": parsed_unit_ref_ids,
+            "markdown": parsed_document.get("markdown") if isinstance(parsed_document, dict) else None,
+            "text": parsed_document.get("text") if isinstance(parsed_document, dict) else None,
+            "markdown_excerpt": markdown_excerpt,
+            "analysis": analysis,
+        }
+
+    def _render_document_summary(self, payload: dict[str, object]) -> str:
+        raw_unit_summaries = payload["unit_summaries"]
+        unit_summaries = raw_unit_summaries if isinstance(raw_unit_summaries, list) else []
+        preview_items = [
+            f"- {summary}"
+            for summary in unit_summaries
+            if isinstance(summary, str) and summary.strip()
+        ]
+        preview_text = "\n".join(preview_items) if preview_items else "- 추출된 본문이 없습니다."
+        page_count = payload["page_count"]
+        page_count_line = (
+            f"- 감지된 페이지 수: {page_count}"
+            if isinstance(page_count, int) and page_count > 0
+            else "- 감지된 페이지 수: 확인되지 않음"
+        )
+        markdown_excerpt = payload["markdown_excerpt"]
+        excerpt_line = ""
+        if isinstance(markdown_excerpt, str) and markdown_excerpt.strip():
+            excerpt_line = f"\n- 문서 미리보기:\n{markdown_excerpt[:500]}"
+        return (
+            "문서 분석을 완료했습니다.\n"
+            f"- 문서 유형: {payload['source_type']}\n"
+            f"- 파일명: {payload['file_name']}\n"
+            f"{page_count_line}\n"
+            f"- 추출된 단위 수: {payload['unit_count']}\n"
+            "- 추출된 핵심 내용:\n"
+            f"{preview_text}"
+            f"{excerpt_line}"
         )

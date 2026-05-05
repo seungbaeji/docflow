@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 from docflow_agent.errors import SapIntegrationError
 from docflow_agent.types.boundary.external import SapRecord
 
 
-@dataclass
 class SapClient:
-    records_by_document: dict[str, list[SapRecord]] = field(default_factory=dict)
+    def __init__(self, records_by_document: dict[str, list[SapRecord]] | None = None) -> None:
+        self.records_by_document = dict(records_by_document or {})
 
 
 def fetch_accounting_records(client: SapClient, document_id: str) -> list[SapRecord]:

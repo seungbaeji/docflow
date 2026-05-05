@@ -96,6 +96,8 @@ Rules:
 
 - `core` uses `types/value` only
 - `types/value` must not import `types/boundary`
+- `dataclass` is for data models only and must live under `types`
+- do not use `dataclass` in `usecases`, `workflow`, `outbound`, `bootstrap`, or `inbound`
 - treat all external input as untrusted
 - validate or normalize external input at inbound/outbound boundaries before converting to value objects
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 from langchain_core.messages import AIMessage, HumanMessage
 
@@ -10,11 +9,17 @@ from docflow_agent.ports.llm import DocumentLlmPort
 from docflow_agent.types.value.chat import ChatTurn
 
 
-@dataclass(frozen=True)
 class ChatUsecase:
-    llm_gateway: DocumentLlmPort
-    chat_history_store: ChatHistoryPort
-    system_prompt: str
+    def __init__(
+        self,
+        *,
+        llm_gateway: DocumentLlmPort,
+        chat_history_store: ChatHistoryPort,
+        system_prompt: str,
+    ) -> None:
+        self.llm_gateway = llm_gateway
+        self.chat_history_store = chat_history_store
+        self.system_prompt = system_prompt
 
     def respond(
         self,

@@ -1,13 +1,11 @@
-from dataclasses import dataclass, field
-
 from docflow_agent.errors import DatabaseIntegrationError
 from docflow_agent.ports.rdbms import WorkflowRunStore
 from docflow_agent.types.boundary.external import WorkflowRunRecord
 
 
-@dataclass
 class InMemoryWorkflowRunStore(WorkflowRunStore):
-    records: dict[str, WorkflowRunRecord] = field(default_factory=dict)
+    def __init__(self) -> None:
+        self.records: dict[str, WorkflowRunRecord] = {}
 
     def save_workflow_run(self, record: WorkflowRunRecord) -> None:
         self.records[record.record_id] = record

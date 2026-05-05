@@ -1,5 +1,3 @@
-from dataclasses import dataclass, field
-
 from docflow_agent.ports.vector_store import VectorStorePort
 from docflow_agent.types.boundary.external import VectorSearchHit, VectorStoreDocument
 
@@ -8,9 +6,9 @@ def _tokenize(text: str) -> set[str]:
     return {token for token in text.casefold().split() if token}
 
 
-@dataclass
 class InMemoryVectorStore(VectorStorePort):
-    documents: dict[str, VectorStoreDocument] = field(default_factory=dict)
+    def __init__(self) -> None:
+        self.documents: dict[str, VectorStoreDocument] = {}
 
     def upsert_documents(self, documents: list[VectorStoreDocument]) -> None:
         for document in documents:

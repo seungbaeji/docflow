@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
 from docflow_agent.errors import StorageIntegrationError
 from docflow_agent.types.boundary.external import StoredObject
 
 
-@dataclass(frozen=True)
 class StorageClient:
-    root_dir: str
+    def __init__(self, *, root_dir: str) -> None:
+        self.root_dir = root_dir
 
 
 def store_bytes(

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import importlib
-from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -12,13 +11,21 @@ from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
 
 
-@dataclass(frozen=True)
 class OpenDataLoaderPdfClient:
-    format: str = "markdown,json"
-    hybrid: str | None = None
-    use_struct_tree: bool = True
-    quiet: bool = True
-    keep_line_breaks: bool = False
+    def __init__(
+        self,
+        *,
+        format: str = "markdown,json",
+        hybrid: str | None = None,
+        use_struct_tree: bool = True,
+        quiet: bool = True,
+        keep_line_breaks: bool = False,
+    ) -> None:
+        self.format = format
+        self.hybrid = hybrid
+        self.use_struct_tree = use_struct_tree
+        self.quiet = quiet
+        self.keep_line_breaks = keep_line_breaks
 
 
 def extract_pdf_document(

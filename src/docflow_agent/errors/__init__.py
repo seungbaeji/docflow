@@ -22,6 +22,7 @@ from docflow_agent.errors.outbound import (
     StorageIntegrationError,
 )
 from docflow_agent.errors.processing import (
+    DocumentAgentRuntimeError,
     ProcessingError,
     UnsupportedCategoryError,
     UnsupportedSourceKindError,
@@ -29,6 +30,7 @@ from docflow_agent.errors.processing import (
 
 __all__ = [
     "DatabaseIntegrationError",
+    "DocumentAgentRuntimeError",
     "DocflowError",
     "EcmError",
     "EcmRequestError",

@@ -5,9 +5,13 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
 
-from docflow_agent.config.prompt import get_chat_system_prompt
+from docflow_agent.config.prompt import (
+    get_chat_system_prompt,
+    get_document_agent_system_prompt,
+)
 from docflow_agent.errors import (
     DocflowError,
+    DocumentAgentRuntimeError,
     EcmRequestError,
     EcmResponseError,
     LlmQuotaExceededError,
@@ -35,7 +39,9 @@ from docflow_agent.workflow.document_workflow import (
     invoke_document_workflow,
     workflow_state_to_response,
 )
+from docflow_agent.workflow.document_agent import DocumentAgentRuntime
 from docflow_agent.workflow.nodes import WorkflowRuntime
+from docflow_agent.workflow.tools import build_document_agent_tools
 
 router = APIRouter()
 
@@ -61,6 +67,35 @@ def _requires_document_processing(message: str) -> bool:
             "document",
         ),
     )
+
+
+def _requires_document_question(message: str) -> bool:
+    return _contains_any(
+        message,
+        (
+            "전체",
+            "내용",
+            "상세",
+            "자세히",
+            "무슨",
+            "무엇",
+            "금액",
+            "이름",
+            "요약",
+            "설명",
+            "해당 문서",
+            "이 문서",
+            "full",
+            "detail",
+            "content",
+            "summary",
+            "question",
+        ),
+    )
+
+
+def _requires_document_agent(message: str) -> bool:
+    return _requires_document_processing(message) or _requires_document_question(message)
 
 
 def _decode_upload_name(headers: Mapping[str, str]) -> str:
@@ -93,6 +128,7 @@ def process(request: ProcessRequest, app_request: Request) -> dict[str, object]:
             workflow_run_store=container.workflow_run_store,
             vector_store=container.vector_store,
             pdf_client=container.pdf_client,
+            pdf_parser=container.pdf_parser,
         )
         workflow_runtime = WorkflowRuntime(
             workflow_run_store=container.workflow_run_store,
@@ -150,6 +186,7 @@ async def upload_document(app_request: Request) -> UploadResponse:
         workflow_run_store=container.workflow_run_store,
         vector_store=container.vector_store,
         pdf_client=container.pdf_client,
+        pdf_parser=container.pdf_parser,
     )
     source_ref_id = document_usecases.register_uploaded_source(
         file_info=FileInfo(
@@ -182,11 +219,31 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
             workflow_run_store=container.workflow_run_store,
             vector_store=container.vector_store,
             pdf_client=container.pdf_client,
+            pdf_parser=container.pdf_parser,
         )
 
-        if current_source_ref is not None and _requires_document_processing(request.message):
-            outcome = document_usecases.process_source_ref(current_source_ref)
-            message = outcome.message
+        if current_source_ref is not None and _requires_document_agent(request.message):
+            document_agent_runtime = DocumentAgentRuntime(
+                llm_gateway=container.llm_gateway,
+                tools=build_document_agent_tools(
+                    session_document_store=container.session_document_store,
+                    document_usecases=document_usecases,
+                ),
+                system_prompt=get_document_agent_system_prompt(),
+            )
+            try:
+                message = document_agent_runtime.run(
+                    prompt=request.message,
+                    session_id=session_id,
+                ).answer
+            except DocumentAgentRuntimeError:
+                if _requires_document_processing(request.message):
+                    message = document_usecases.summarize_source_ref(current_source_ref)
+                else:
+                    message = document_usecases.answer_question_about_source_ref(
+                        current_source_ref,
+                        request.message,
+                    )
         else:
             document_context = None
             if current_source_ref is not None:

@@ -15,11 +15,12 @@ from docflow_agent.config.settings import (
 )
 from docflow_agent.errors import LlmQuotaExceededError
 from docflow_agent.inbound.api.server import create_app
+from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.ports.llm import DocumentLlmPort
+from docflow_agent.types.boundary.common import FileInfo
+from docflow_agent.types.boundary.external import PdfDocument, PdfElement
 from docflow_agent.types.value.chat import ChatTurn
-from docflow_agent.usecases.document_workflow import UsecaseOutcome
-
 
 def _settings_without_env(*, upload_dir: str = "tmp/uploads") -> Settings:
     return Settings.model_construct(
@@ -27,6 +28,30 @@ def _settings_without_env(*, upload_dir: str = "tmp/uploads") -> Settings:
         api=ApiSettings(),
         ui=UiSettings(),
         llm=LlmSettings(),
+    )
+
+
+def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
+    assert client.format == "markdown,json"
+    return PdfDocument(
+        file_name=file_info.name,
+        page_count=1,
+        markdown="# 간이지급명세서\n총지급액: 120000원",
+        text="간이지급명세서\n총지급액: 120000원",
+        elements=[
+            PdfElement(
+                element_type="heading",
+                page_number=1,
+                content="간이지급명세서",
+                bounding_box=[72.0, 700.0, 540.0, 730.0],
+            ),
+            PdfElement(
+                element_type="paragraph",
+                page_number=1,
+                content="총지급액: 120000원",
+                bounding_box=[72.0, 640.0, 540.0, 680.0],
+            ),
+        ],
     )
 
 
@@ -187,46 +212,107 @@ def test_upload_route_accepts_unicode_filename_via_base64_header(tmp_path: Path)
 
 def test_chat_route_processes_current_uploaded_document(tmp_path: Path) -> None:
     upload_dir = tmp_path / "uploads"
-    llm_gateway = StubDocumentLlmGateway(chat_response="chat ok")
+    llm_gateway = StubDocumentLlmGateway(
+        chat_responses=[
+            '{"type":"tool_call","tool":"get_current_document","arguments":{}}',
+            '{"type":"tool_call","tool":"parse_current_document","arguments":{}}',
+            '{"type":"tool_call","tool":"summarize_current_document","arguments":{}}',
+            '{"type":"final_answer","answer":"문서 분석 결과: 간이지급명세서이며 총지급액은 120000원입니다."}',
+        ]
+    )
     container = build_container(
         settings=_settings_without_env(upload_dir=str(upload_dir)),
         llm_gateway=llm_gateway,
+        pdf_parser=_fake_pdf_parser,
     )
     app = create_app(settings=container.settings, container=container)
-
-    def fake_process_source_ref(
-        self: object,
-        source_ref_id: str,
-    ) -> UsecaseOutcome:
-        del self
-        return UsecaseOutcome(
-            ref_id=source_ref_id,
-            message="Document processed with 1 categorized units.",
+    with TestClient(app) as client:
+        upload_response = client.post(
+            "/uploads",
+            content=b"%PDF-1.7 fake",
+            headers={
+                "Content-Type": "application/pdf",
+                "X-Filename": "invoice.pdf",
+                "X-Session-Id": "session-uploaded-doc",
+            },
         )
-
-    # Route code creates the usecase directly, so patch the method on the imported class.
-    from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
-
-    original_process_source_ref = RepositoryBackedDocumentUsecases.process_source_ref
-    RepositoryBackedDocumentUsecases.process_source_ref = fake_process_source_ref  # type: ignore[method-assign]
-    try:
-        with TestClient(app) as client:
-            upload_response = client.post(
-                "/uploads",
-                content=b"%PDF-1.7 fake",
-                headers={
-                    "Content-Type": "application/pdf",
-                    "X-Filename": "invoice.pdf",
-                    "X-Session-Id": "session-uploaded-doc",
-                },
-            )
-            chat_response = client.post(
-                "/chat",
-                json={"message": "해당 문서를 읽고 분석해 줘", "session_id": "session-uploaded-doc"},
-            )
-    finally:
-        RepositoryBackedDocumentUsecases.process_source_ref = original_process_source_ref  # type: ignore[method-assign]
+        chat_response = client.post(
+            "/chat",
+            json={"message": "해당 문서를 읽고 분석해 줘", "session_id": "session-uploaded-doc"},
+        )
 
     assert upload_response.status_code == 200
     assert chat_response.status_code == 200
-    assert chat_response.json()["message"] == "Document processed with 1 categorized units."
+    assert chat_response.json()["message"] == "문서 분석 결과: 간이지급명세서이며 총지급액은 120000원입니다."
+    assert len(llm_gateway.chatted_messages) == 4
+
+
+def test_chat_route_answers_question_about_current_uploaded_document(tmp_path: Path) -> None:
+    upload_dir = tmp_path / "uploads"
+    llm_gateway = StubDocumentLlmGateway(
+        chat_responses=[
+            '{"type":"tool_call","tool":"get_current_document","arguments":{}}',
+            '{"type":"tool_call","tool":"parse_current_document","arguments":{}}',
+            '{"type":"tool_call","tool":"answer_about_current_document","arguments":{"question":"전체 내용을 설명해 줘"}}',
+            '{"type":"final_answer","answer":"문서 전체 내용에는 간이지급명세서와 총지급액 120000원이 포함되어 있습니다."}',
+        ]
+    )
+    container = build_container(
+        settings=_settings_without_env(upload_dir=str(upload_dir)),
+        llm_gateway=llm_gateway,
+        pdf_parser=_fake_pdf_parser,
+    )
+    app = create_app(settings=container.settings, container=container)
+    with TestClient(app) as client:
+        upload_response = client.post(
+            "/uploads",
+            content=b"%PDF-1.7 fake",
+            headers={
+                "Content-Type": "application/pdf",
+                "X-Filename": "invoice.pdf",
+                "X-Session-Id": "session-doc-question",
+            },
+        )
+        chat_response = client.post(
+            "/chat",
+            json={"message": "전체 내용을 설명해 줘", "session_id": "session-doc-question"},
+        )
+
+    assert upload_response.status_code == 200
+    assert chat_response.status_code == 200
+    assert (
+        chat_response.json()["message"]
+        == "문서 전체 내용에는 간이지급명세서와 총지급액 120000원이 포함되어 있습니다."
+    )
+    assert len(llm_gateway.chatted_messages) == 4
+
+
+def test_chat_route_falls_back_when_document_agent_returns_invalid_json(tmp_path: Path) -> None:
+    upload_dir = tmp_path / "uploads"
+    llm_gateway = StubDocumentLlmGateway(chat_response="not-json")
+    container = build_container(
+        settings=_settings_without_env(upload_dir=str(upload_dir)),
+        llm_gateway=llm_gateway,
+        pdf_parser=_fake_pdf_parser,
+    )
+    app = create_app(settings=container.settings, container=container)
+
+    with TestClient(app) as client:
+        upload_response = client.post(
+            "/uploads",
+            content=b"%PDF-1.7 fake",
+            headers={
+                "Content-Type": "application/pdf",
+                "X-Filename": "invoice.pdf",
+                "X-Session-Id": "session-fallback",
+            },
+        )
+        chat_response = client.post(
+            "/chat",
+            json={"message": "해당 문서를 읽고 분석해 줘", "session_id": "session-fallback"},
+        )
+
+    assert upload_response.status_code == 200
+    assert chat_response.status_code == 200
+    assert "문서 분석을 완료했습니다." in chat_response.json()["message"]
+    assert "총지급액: 120000원" in chat_response.json()["message"]

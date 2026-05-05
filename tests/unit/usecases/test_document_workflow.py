@@ -135,3 +135,85 @@ def test_parse_units_uses_pdf_adapter_for_pdf_source(tmp_path: Path) -> None:
     assert parsed_refs
     parsed_document = repository.load("analysis", parsed_refs[0])
     assert parsed_document["file_name"] == "invoice.pdf"
+
+
+def test_summarize_source_ref_returns_human_readable_summary(tmp_path: Path) -> None:
+    repository = InMemoryArtifactRepository()
+    source_path = tmp_path / "statement.pdf"
+    source_path.write_bytes(b"%PDF-1.7 fake")
+
+    def fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
+        assert client.format == "markdown,json"
+        assert file_info.path == str(source_path)
+        return PdfDocument(
+            file_name="statement.pdf",
+            page_count=1,
+            markdown="# Payment statement\nTotal amount: 120000 KRW",
+            elements=[
+                PdfElement(
+                    element_type="paragraph",
+                    page_number=1,
+                    content="Total amount: 120000 KRW",
+                    bounding_box=[72.0, 640.0, 540.0, 680.0],
+                ),
+            ],
+        )
+
+    usecases = RepositoryBackedDocumentUsecases(
+        artifact_repository=repository,
+        pdf_client=OpenDataLoaderPdfClient(),
+        pdf_parser=fake_pdf_parser,
+    )
+
+    source_ref_id = usecases.load_source(f"이 PDF 파일을 분석해줘 {source_path}")
+    summary = usecases.summarize_source_ref(source_ref_id)
+
+    assert "문서 분석을 완료했습니다." in summary
+    assert "- 문서 유형: pdf" in summary
+    assert "- 파일명: statement.pdf" in summary
+    assert "- 감지된 페이지 수: 1" in summary
+    assert "Total amount: 120000 KRW" in summary
+
+
+def test_answer_question_about_source_ref_uses_full_document_payload(tmp_path: Path) -> None:
+    repository = InMemoryArtifactRepository()
+    llm_gateway = StubDocumentLlmGateway(answer_response="질문 응답")
+    source_path = tmp_path / "statement.pdf"
+    source_path.write_bytes(b"%PDF-1.7 fake")
+
+    def fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
+        assert client.format == "markdown,json"
+        assert file_info.path == str(source_path)
+        return PdfDocument(
+            file_name="statement.pdf",
+            page_count=1,
+            markdown="# Payment statement\nTotal amount: 120000 KRW",
+            text="Payment statement\nTotal amount: 120000 KRW",
+            elements=[
+                PdfElement(
+                    element_type="paragraph",
+                    page_number=1,
+                    content="Total amount: 120000 KRW",
+                    bounding_box=[72.0, 640.0, 540.0, 680.0],
+                ),
+            ],
+        )
+
+    usecases = RepositoryBackedDocumentUsecases(
+        artifact_repository=repository,
+        llm_gateway=llm_gateway,
+        pdf_client=OpenDataLoaderPdfClient(),
+        pdf_parser=fake_pdf_parser,
+    )
+
+    source_ref_id = usecases.load_source(f"이 PDF 파일을 분석해줘 {source_path}")
+    answer = usecases.answer_question_about_source_ref(source_ref_id, "전체 내용을 설명해 줘")
+
+    assert answer == "질문 응답"
+    assert llm_gateway.asked_questions
+    asked_question, payload = llm_gateway.asked_questions[0]
+    assert asked_question == "전체 내용을 설명해 줘"
+    assert payload["file_name"] == "statement.pdf"
+    assert payload["page_count"] == 1
+    assert payload["markdown"] == "# Payment statement\nTotal amount: 120000 KRW"
+    assert payload["text"] == "Payment statement\nTotal amount: 120000 KRW"

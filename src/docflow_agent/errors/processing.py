@@ -17,3 +17,9 @@ class UnsupportedCategoryError(ProcessingError):
     def __init__(self, category: str) -> None:
         super().__init__(f"Unsupported category: {category}")
         self.category = category
+
+
+class DocumentAgentRuntimeError(ProcessingError):
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Document agent runtime failed: {reason}")
+        self.reason = reason

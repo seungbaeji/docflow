@@ -1,14 +1,13 @@
 from collections import deque
-from dataclasses import dataclass, field
 
 from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.types.boundary.external import QueueMessage
 
 
-@dataclass
 class InMemoryWorkflowQueue(WorkflowQueuePort):
-    messages: deque[QueueMessage] = field(default_factory=deque)
-    acknowledged_ids: set[str] = field(default_factory=set)
+    def __init__(self) -> None:
+        self.messages: deque[QueueMessage] = deque()
+        self.acknowledged_ids: set[str] = set()
 
     def enqueue(self, message: QueueMessage) -> None:
         self.messages.append(message)

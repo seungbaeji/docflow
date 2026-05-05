@@ -9,3 +9,9 @@ class ProcessResult:
     unit_count: int = 0
     bundle_data: dict[str, object] = field(default_factory=dict)
     messages: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class UsecaseOutcome:
+    ref_id: str
+    message: str

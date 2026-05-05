@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.ports.rdbms import WorkflowRunStore
 from docflow_agent.types.boundary.external import QueueMessage, WorkflowRunRecord
-from docflow_agent.usecases.document_workflow import UsecaseOutcome
+from docflow_agent.types.value.results import UsecaseOutcome
 from docflow_agent.workflow.routes import get_human_decision, route_flow
 from docflow_agent.workflow.state import ArtifactKind, ArtifactRef, WorkflowState
 
@@ -46,10 +45,15 @@ class DocumentWorkflowUsecases(Protocol):
 ArtifactRefListKey = Literal["source_refs", "unit_refs", "bundle_refs", "dataset_refs", "output_refs"]
 
 
-@dataclass(frozen=True)
 class WorkflowRuntime:
-    workflow_run_store: WorkflowRunStore | None = None
-    workflow_queue: WorkflowQueuePort | None = None
+    def __init__(
+        self,
+        *,
+        workflow_run_store: WorkflowRunStore | None = None,
+        workflow_queue: WorkflowQueuePort | None = None,
+    ) -> None:
+        self.workflow_run_store = workflow_run_store
+        self.workflow_queue = workflow_queue
 
 
 def _artifact_ref(kind: ArtifactKind, ref_id: str) -> ArtifactRef:
