@@ -1,5 +1,6 @@
 import streamlit as st
 
+from docflow_agent.bootstrap import get_container
 from docflow_agent.errors import DocflowError
 from docflow_agent.workflow.document_workflow import (
     invoke_document_workflow,
@@ -25,6 +26,7 @@ def main() -> None:
         return
 
     try:
+        container = get_container()
         human_decisions: list[HumanDecision] | None = None
         if approval != "none":
             human_decisions = [
@@ -40,6 +42,7 @@ def main() -> None:
         state = invoke_document_workflow(
             user_input=user_input,
             human_decisions=human_decisions,
+            workflow=container.document_workflow,
         )
     except DocflowError as exc:
         st.error(str(exc))

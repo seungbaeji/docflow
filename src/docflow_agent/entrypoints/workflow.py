@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from docflow_agent.bootstrap import get_container
 from docflow_agent.workflow.document_workflow import (
     invoke_document_workflow,
     workflow_state_to_response,
@@ -39,8 +40,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    container = get_container()
     state = invoke_document_workflow(
         user_input=args.user_input,
         human_decisions=_build_human_decisions(args.approve_send_mail),
+        workflow=container.document_workflow,
     )
     print(workflow_state_to_response(state))

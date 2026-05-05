@@ -5,13 +5,6 @@ from typing import Any, cast
 
 from langgraph.graph import END, START, StateGraph
 
-from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
-from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
-from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
-from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
-    InMemoryArtifactRepository,
-)
-from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
 from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
 from docflow_agent.workflow.nodes import (
@@ -135,30 +128,14 @@ def build_document_workflow(
 
 
 def create_document_workflow(
-    usecases: DocumentWorkflowUsecases | None = None,
-    artifact_repository: ArtifactRepository | None = None,
+    usecases: DocumentWorkflowUsecases,
+    artifact_repository: ArtifactRepository,
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
-    repository = artifact_repository or InMemoryArtifactRepository()
-    processing_record_store = InMemoryProcessingRecordStore()
-    workflow_queue = InMemoryWorkflowQueue()
-    workflow_usecases = usecases or RepositoryBackedDocumentUsecases(
-        artifact_repository=repository,
-        llm_gateway=StubDocumentLlmGateway(
-            summary_response="Stub summary for unsettled items.",
-            answer_response="Stub answer for document question.",
-        ),
-        processing_record_store=processing_record_store,
-        vector_store=InMemoryVectorStore(),
-    )
     return build_document_workflow(
-        usecases=workflow_usecases,
-        artifact_repository=repository,
-        workflow_runtime=workflow_runtime
-        or WorkflowRuntime(
-            processing_record_store=processing_record_store,
-            workflow_queue=workflow_queue,
-        ),
+        usecases=usecases,
+        artifact_repository=artifact_repository,
+        workflow_runtime=workflow_runtime,
     )
 
 
@@ -167,7 +144,11 @@ def invoke_document_workflow(
     human_decisions: list[HumanDecision] | None = None,
     workflow: Any | None = None,
 ) -> WorkflowState:
-    active_workflow = workflow or create_document_workflow()
+    active_workflow = workflow
+    if active_workflow is None:
+        from docflow_agent.bootstrap import get_container
+
+        active_workflow = get_container().document_workflow
     initial_state: WorkflowState = {"user_input": user_input}
     if human_decisions:
         initial_state["human_decisions"] = human_decisions

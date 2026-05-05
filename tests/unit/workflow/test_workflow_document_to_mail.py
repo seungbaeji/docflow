@@ -131,7 +131,13 @@ def test_document_to_mail_workflow_records_pending_approval_and_enqueues_request
     repository = InMemoryArtifactRepository()
     processing_store = InMemoryProcessingRecordStore()
     queue = InMemoryWorkflowQueue()
+    usecases = RepositoryBackedDocumentUsecases(
+        artifact_repository=repository,
+        processing_record_store=processing_store,
+        vector_store=InMemoryVectorStore(),
+    )
     workflow = create_document_workflow(
+        usecases=usecases,
         artifact_repository=repository,
         workflow_runtime=WorkflowRuntime(
             processing_record_store=processing_store,

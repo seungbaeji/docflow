@@ -20,6 +20,7 @@ usecases -> outbound
   - `outbound/external`: ECM, SAP, mail, OCR, storage, LLM 같은 외부 시스템 연동
   - `outbound/testing`: in-memory repository, rdbms, vector store, queue, llm 같은 테스트/로컬 개발용 어댑터
 - `ports`: repository, llm, rdbms, vector store, queue 같은 usecase/workflow 경계
+- `bootstrap`: settings와 adapter를 조립해 workflow/usecase DI container를 만드는 위치
 - `types`: `value`와 `boundary`로 나뉜 실데이터 구조
   - `types/value`: 내부에서 신뢰하고 쓰는 `frozen dataclass` value object
   - `types/boundary`: 외부 입력/출력과 외부 시스템 payload를 담는 `pydantic` boundary DTO
@@ -54,6 +55,8 @@ workflow의 책임:
 - state에는 control field와 artifact ref만 두고, 큰 데이터는 repository/store에 보관
 
 현재 구현은 `src/docflow_agent/workflow/` 아래에 있고 LangGraph를 실행 엔진으로 사용하지만, workflow 개념 자체는 LangGraph에 종속되지 않습니다.
+
+기본 wiring은 `src/docflow_agent/bootstrap.py`가 담당합니다. entrypoint는 bootstrap container에서 workflow와 usecase를 받아 실행하고, workflow/usecase는 adapter를 직접 생성하지 않습니다.
 
 외부 agent 노출이 필요해지면 별도 public tool을 두기보다 MCP server를 추가하는 방향을 우선 고려합니다. 현재는 외부 노출용 tool entrypoint를 두지 않습니다.
 

@@ -79,6 +79,12 @@ Rules:
 - boundary interfaces used by usecases/workflow
 - examples: repository, llm, rdbms, vector_store, queue
 
+### bootstrap
+
+- provide the default DI container
+- build settings, repositories, gateways, workflow runtime, and usecases in one place
+- entrypoints should use bootstrap wiring rather than instantiating adapters inline
+
 ### types
 
 - `types/value`: `frozen dataclass` value object only
