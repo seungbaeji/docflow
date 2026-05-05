@@ -1,7 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from docflow_agent.types.boundary.api import HumanDecisionRequest
+from docflow_agent.types.boundary.api import ChatMessage, ChatRequest, HumanDecisionRequest
+from docflow_agent.types.value.chat import ChatTurn
 from docflow_agent.types.boundary.external import EcmSearchResponse
 
 
@@ -28,3 +29,19 @@ def test_ecm_search_response_rejects_invalid_document_payload() -> None:
                 ]
             }
         )
+
+
+def test_chat_request_converts_history_to_value_objects() -> None:
+    request = ChatRequest(
+        message="next",
+        system_prompt="Be concise.",
+        history=[
+            ChatMessage(role="user", content="hello"),
+            ChatMessage(role="assistant", content="hi"),
+        ],
+    )
+
+    assert request.to_value_history() == [
+        ChatTurn(role="user", content="hello"),
+        ChatTurn(role="assistant", content="hi"),
+    ]

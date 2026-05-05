@@ -6,11 +6,19 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
     InMemoryArtifactRepository,
 )
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
-from docflow_agent.settings import Settings
+from docflow_agent.settings import ApiSettings, AppSettings, LlmSettings, Settings
+
+
+def _settings_without_env() -> Settings:
+    return Settings.model_construct(
+        app=AppSettings(),
+        api=ApiSettings(),
+        llm=LlmSettings(),
+    )
 
 
 def test_build_container_wires_testing_dependencies_by_default() -> None:
-    container = build_container(settings=Settings())
+    container = build_container(settings=_settings_without_env())
 
     assert isinstance(container.artifact_repository, InMemoryArtifactRepository)
     assert isinstance(container.llm_gateway, StubDocumentLlmGateway)
@@ -29,7 +37,7 @@ def test_build_container_uses_injected_dependencies() -> None:
     llm_gateway = StubDocumentLlmGateway(summary_response="Injected summary")
 
     container = build_container(
-        settings=Settings(),
+        settings=_settings_without_env(),
         artifact_repository=repository,
         llm_gateway=llm_gateway,
         processing_record_store=processing_store,

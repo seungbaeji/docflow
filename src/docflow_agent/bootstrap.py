@@ -18,6 +18,7 @@ from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.ports.rdbms import ProcessingRecordPort
 from docflow_agent.ports.vector_store import VectorStorePort
 from docflow_agent.settings import Settings, get_settings
+from docflow_agent.usecases.chat import ChatUsecase
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
 from docflow_agent.workflow.document_workflow import create_document_workflow
 from docflow_agent.workflow.nodes import WorkflowRuntime
@@ -31,6 +32,7 @@ class AppContainer:
     processing_record_store: ProcessingRecordPort
     vector_store: VectorStorePort
     workflow_queue: WorkflowQueuePort
+    chat_usecase: ChatUsecase
     document_usecases: RepositoryBackedDocumentUsecases
     workflow_runtime: WorkflowRuntime
     document_workflow: Any
@@ -60,6 +62,7 @@ def build_container(
     active_processing_record_store = processing_record_store or InMemoryProcessingRecordStore()
     active_vector_store = vector_store or InMemoryVectorStore()
     active_workflow_queue = workflow_queue or InMemoryWorkflowQueue()
+    chat_usecase = ChatUsecase(llm_gateway=active_llm_gateway)
 
     document_usecases = RepositoryBackedDocumentUsecases(
         artifact_repository=active_repository,
@@ -84,6 +87,7 @@ def build_container(
         processing_record_store=active_processing_record_store,
         vector_store=active_vector_store,
         workflow_queue=active_workflow_queue,
+        chat_usecase=chat_usecase,
         document_usecases=document_usecases,
         workflow_runtime=workflow_runtime,
         document_workflow=document_workflow,

@@ -100,16 +100,51 @@ pytest
 - `docflow-ui`: Streamlit UI 실행
 - `docflow-workflow`: prompt 기반 workflow 실행
 
-예시:
+빠르게 API와 UI를 함께 띄워보려면 터미널을 두 개 열어 아래처럼 실행하면 됩니다.
 
 ```bash
+# terminal 1
 uv run docflow-api
+
+# terminal 2
 uv run docflow-ui
+```
+
+개별 실행 예시:
+
+```bash
 uv run docflow-workflow "엑셀 문서를 분석해줘"
 uv run docflow-workflow "엑셀에서 미정산 건을 찾아 메일로 보내줘" --approve-send-mail approve
 ```
 
 기본 API 주소는 `http://127.0.0.1:8000`입니다. 설정은 `.env` 또는 environment variable로 주입할 수 있고, 예를 들면 `DOCFLOW_AGENT_API__PORT=8010`처럼 바꿀 수 있습니다.
+
+UI는 현재 Streamlit 기반의 local app입니다.
+
+- `Chat` 탭: 멀티턴 대화, system prompt 설정, 세션별 대화 히스토리 유지
+- `Workflow` 탭: prompt 기반 workflow 실행과 HITL 분기 확인
+
+브라우저 UI는 현재 FastAPI backend를 프록시처럼 호출하지 않고, 같은 bootstrap container와 workflow/chat usecase를 직접 실행합니다. 즉 API와 UI는 같은 wiring을 공유하지만 실행 경로는 서로 독립적입니다.
+
+현재 API는 두 surface를 제공합니다.
+
+- `POST /process`: workflow 실행
+- `POST /chat`: LLM chat 실행
+
+예시:
+
+```bash
+curl -X POST http://127.0.0.1:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message":"이어서 한 문장 더 설명해줘",
+    "system_prompt":"You are a concise assistant.",
+    "history":[
+      {"role":"user","content":"안녕하세요. 간단히 자기소개해줘"},
+      {"role":"assistant","content":"안녕하세요. 문서 처리 워크플로우를 돕는 assistant입니다."}
+    ]
+  }'
+```
 
 ## 문서 수정과 자동화
 

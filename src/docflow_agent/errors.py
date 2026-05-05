@@ -97,3 +97,10 @@ class MissingLlmApiKeyError(LlmError):
     def __init__(self, provider: str) -> None:
         super().__init__(f"Missing API key for LLM provider: {provider}")
         self.provider = provider
+
+
+class LlmRequestError(LlmError):
+    def __init__(self, provider: str, reason: str) -> None:
+        super().__init__(f"LLM request failed for provider={provider}: {reason}")
+        self.provider = provider
+        self.reason = reason
