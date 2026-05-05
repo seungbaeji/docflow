@@ -3,19 +3,27 @@ from collections.abc import Sequence
 from fastapi.testclient import TestClient
 
 from docflow_agent.bootstrap import build_container
-from docflow_agent.errors import LlmRequestError
+from docflow_agent.errors import LlmQuotaExceededError
 from docflow_agent.inbound.api.server import create_app
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.ports.llm import DocumentLlmPort
-from docflow_agent.settings import Settings
+from docflow_agent.settings import ApiSettings, AppSettings, LlmSettings, Settings
 from docflow_agent.types.value.chat import ChatTurn
+
+
+def _settings_without_env() -> Settings:
+    return Settings.model_construct(
+        app=AppSettings(),
+        api=ApiSettings(),
+        llm=LlmSettings(),
+    )
 
 
 def test_chat_route_returns_llm_response() -> None:
     llm_gateway = StubDocumentLlmGateway(chat_response="chat ok")
     app = create_app()
     app.state.container = build_container(
-        settings=Settings(),
+        settings=_settings_without_env(),
         llm_gateway=llm_gateway,
     )
     client = TestClient(app)
@@ -31,7 +39,7 @@ def test_chat_route_passes_history_and_system_prompt() -> None:
     llm_gateway = StubDocumentLlmGateway(chat_response="history ok")
     app = create_app()
     app.state.container = build_container(
-        settings=Settings(),
+        settings=_settings_without_env(),
         llm_gateway=llm_gateway,
     )
     client = TestClient(app)
@@ -68,7 +76,7 @@ class FailingLlmGateway(DocumentLlmPort):
         system_prompt: str | None = None,
         history: Sequence[ChatTurn] | None = None,
     ) -> str:
-        raise LlmRequestError(provider="gemini", reason="quota exhausted")
+        raise LlmQuotaExceededError(provider="gemini", reason="quota exhausted")
 
     def summarize_document(
         self,
@@ -87,12 +95,12 @@ class FailingLlmGateway(DocumentLlmPort):
 def test_chat_route_translates_llm_failures() -> None:
     app = create_app()
     app.state.container = build_container(
-        settings=Settings(),
+        settings=_settings_without_env(),
         llm_gateway=FailingLlmGateway(),
     )
     client = TestClient(app)
 
     response = client.post("/chat", json={"message": "hello"})
 
-    assert response.status_code == 503
+    assert response.status_code == 429
     assert response.json()["detail"] == "LLM request failed for provider=gemini: quota exhausted"

@@ -4,6 +4,8 @@ from docflow_agent.errors import (
     DocflowError,
     EcmRequestError,
     EcmResponseError,
+    LlmQuotaExceededError,
+    LlmRateLimitError,
     LlmRequestError,
     MailIntegrationError,
     MissingLlmApiKeyError,
@@ -32,6 +34,10 @@ def process(request: ProcessRequest) -> dict[str, object]:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except (EcmRequestError, EcmResponseError, MailIntegrationError) as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except LlmQuotaExceededError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except LlmRateLimitError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except LlmRequestError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (UnsupportedLlmProviderError, MissingLlmApiKeyError, MissingLlmDependencyError) as exc:
@@ -50,6 +56,10 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
             system_prompt=request.system_prompt,
             history=request.to_value_history(),
         )
+    except LlmQuotaExceededError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except LlmRateLimitError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except LlmRequestError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (UnsupportedLlmProviderError, MissingLlmApiKeyError, MissingLlmDependencyError) as exc:

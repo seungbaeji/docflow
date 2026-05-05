@@ -34,9 +34,18 @@
 - `DOCFLOW_AGENT_LLM__BASE_URL`
 - `DOCFLOW_AGENT_LLM__TIMEOUT_SECONDS`
 - `DOCFLOW_AGENT_LLM__MAX_RETRIES`
+- `DOCFLOW_AGENT_LLM__RETRY_BACKOFF_SECONDS`
+- `DOCFLOW_AGENT_LLM__RETRY_BACKOFF_MULTIPLIER`
+- `DOCFLOW_AGENT_LLM__RETRY_ON_RATE_LIMIT`
 - `DOCFLOW_AGENT_LLM__API_KEY`
 
 기본값은 `stub`이며, 외부 서비스 없이도 로컬에서 실행됩니다. `openai`와 `gemini`는 모두 API key가 필요합니다.
+
+`MAX_RETRIES`와 backoff 설정은 outbound wrapper의 재시도 정책에도 사용됩니다. 현재 기본 동작은 다음과 같습니다.
+
+- quota 초과: `LlmQuotaExceededError`로 분류, 재시도하지 않음
+- 일시적 rate limit: `LlmRateLimitError`로 분류, 설정에 따라 재시도 가능
+- 기타 provider 실패: `LlmRequestError`
 
 API key는 환경변수나 `pydantic-settings` 입력으로만 주입합니다. 런타임에 임시 파일을 fallback으로 읽지는 않습니다.
 
@@ -110,3 +119,8 @@ FastAPI entrypoint는 `POST /chat` endpoint를 제공합니다. 이 endpoint는 
   "model": "gemini-2.0-flash"
 }
 ```
+
+에러 응답도 구분됩니다.
+
+- quota 초과: HTTP `429`
+- 일시적 rate limit / provider 요청 실패: HTTP `503`

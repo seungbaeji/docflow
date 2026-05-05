@@ -28,6 +28,9 @@ class LlmSettings(BaseModel):
     base_url: str | None = None
     timeout_seconds: float = 30.0
     max_retries: int = 2
+    retry_backoff_seconds: float = 1.0
+    retry_backoff_multiplier: float = 2.0
+    retry_on_rate_limit: bool = True
 
 
 class Settings(BaseSettings):

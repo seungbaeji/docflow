@@ -5,6 +5,7 @@ import pytest
 from pydantic import SecretStr
 
 from docflow_agent.errors import (
+    LlmQuotaExceededError,
     LlmRequestError,
     MissingLlmApiKeyError,
     MissingLlmDependencyError,
@@ -51,6 +52,22 @@ class FailingChatModel:
         raise RuntimeError("quota exhausted")
 
 
+class RateLimitedChatModel:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def invoke(self, _: object) -> object:
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("RESOURCE_EXHAUSTED. Please retry in 0s.")
+
+        class Response:
+            def __init__(self, content: str) -> None:
+                self.content = content
+
+        return Response("recovered")
+
+
 def test_summarize_document_uses_client_output() -> None:
     summary = summarize_document(
         {"source_kind": "excel", "category": "invoice", "amount": 1000},
@@ -92,7 +109,7 @@ def test_chat_text_uses_client_output() -> None:
 
 def test_chat_text_wraps_provider_failure() -> None:
     with pytest.raises(
-        LlmRequestError,
+        LlmQuotaExceededError,
         match="LLM request failed for provider=gemini: quota exhausted",
     ):
         chat_text(
@@ -102,6 +119,25 @@ def test_chat_text_wraps_provider_failure() -> None:
                 provider="gemini",
             ),
         )
+
+
+def test_chat_text_retries_on_rate_limit() -> None:
+    model = RateLimitedChatModel()
+
+    answer = chat_text(
+        message="hello",
+        client=LlmClient(
+            chat_model=model,  # type: ignore[arg-type]
+            provider="gemini",
+            max_retries=1,
+            retry_backoff_seconds=0.0,
+            retry_backoff_multiplier=1.0,
+            retry_on_rate_limit=True,
+        ),
+    )
+
+    assert answer == "recovered"
+    assert model.calls == 2
 
 
 def test_stub_document_llm_gateway_tracks_requests() -> None:
@@ -124,6 +160,9 @@ def test_settings_defaults_stub_provider() -> None:
 
     assert settings.llm.provider == "stub"
     assert settings.llm.temperature == 0.0
+    assert settings.llm.retry_backoff_seconds == 1.0
+    assert settings.llm.retry_backoff_multiplier == 2.0
+    assert settings.llm.retry_on_rate_limit is True
     assert settings.api.port == 8000
     assert settings.app.env == "local"
 

@@ -1,4 +1,6 @@
 import json
+import re
+import time
 from collections.abc import Sequence
 from importlib import import_module
 
@@ -7,6 +9,8 @@ from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from docflow_agent.errors import (
+    LlmQuotaExceededError,
+    LlmRateLimitError,
     LlmRequestError,
     MissingLlmApiKeyError,
     MissingLlmDependencyError,
@@ -18,9 +22,21 @@ from docflow_agent.types.value.chat import ChatTurn
 
 
 class LlmClient:
-    def __init__(self, chat_model: BaseChatModel, provider: str = "unknown") -> None:
+    def __init__(
+        self,
+        chat_model: BaseChatModel,
+        provider: str = "unknown",
+        max_retries: int = 0,
+        retry_backoff_seconds: float = 0.0,
+        retry_backoff_multiplier: float = 1.0,
+        retry_on_rate_limit: bool = True,
+    ) -> None:
         self.chat_model = chat_model
         self.provider = provider
+        self.max_retries = max_retries
+        self.retry_backoff_seconds = retry_backoff_seconds
+        self.retry_backoff_multiplier = retry_backoff_multiplier
+        self.retry_on_rate_limit = retry_on_rate_limit
 
 
 class ExternalDocumentLlmGateway(DocumentLlmPort):
@@ -67,6 +83,10 @@ def build_llm_client(settings: Settings | None = None) -> LlmClient:
                 ]
             ),
             provider="stub",
+            max_retries=llm_settings.max_retries,
+            retry_backoff_seconds=llm_settings.retry_backoff_seconds,
+            retry_backoff_multiplier=llm_settings.retry_backoff_multiplier,
+            retry_on_rate_limit=llm_settings.retry_on_rate_limit,
         )
 
     if llm_settings.provider == "openai":
@@ -87,6 +107,10 @@ def build_llm_client(settings: Settings | None = None) -> LlmClient:
                 max_retries=llm_settings.max_retries,
             ),
             provider="openai",
+            max_retries=llm_settings.max_retries,
+            retry_backoff_seconds=llm_settings.retry_backoff_seconds,
+            retry_backoff_multiplier=llm_settings.retry_backoff_multiplier,
+            retry_on_rate_limit=llm_settings.retry_on_rate_limit,
         )
 
     if llm_settings.provider == "gemini":
@@ -106,6 +130,10 @@ def build_llm_client(settings: Settings | None = None) -> LlmClient:
                 max_retries=llm_settings.max_retries,
             ),
             provider="gemini",
+            max_retries=llm_settings.max_retries,
+            retry_backoff_seconds=llm_settings.retry_backoff_seconds,
+            retry_backoff_multiplier=llm_settings.retry_backoff_multiplier,
+            retry_on_rate_limit=llm_settings.retry_on_rate_limit,
         )
 
     raise UnsupportedLlmProviderError(llm_settings.provider)
@@ -181,11 +209,21 @@ def _invoke_text(
     messages: list[SystemMessage | HumanMessage | AIMessage],
     client: LlmClient,
 ) -> str:
-    try:
-        response = client.chat_model.invoke(messages)
-    except Exception as exc:  # pragma: no cover - provider-specific failures
-        raise LlmRequestError(provider=client.provider, reason=str(exc)) from exc
-    return _message_to_text(response.content)
+    backoff_seconds = client.retry_backoff_seconds
+    for attempt in range(client.max_retries + 1):
+        try:
+            response = client.chat_model.invoke(messages)
+        except Exception as exc:  # pragma: no cover - provider-specific failures
+            classified_error = _classify_llm_error(provider=client.provider, exc=exc)
+            if not _should_retry(classified_error, client=client, attempt=attempt):
+                raise classified_error from exc
+            sleep_seconds = _resolve_sleep_seconds(classified_error, backoff_seconds)
+            if sleep_seconds > 0:
+                time.sleep(sleep_seconds)
+            backoff_seconds *= client.retry_backoff_multiplier
+            continue
+        return _message_to_text(response.content)
+    raise AssertionError("unreachable")
 
 
 def _message_to_text(content: str | list[str | dict[str, object]]) -> str:
@@ -200,3 +238,58 @@ def _message_to_text(content: str | list[str | dict[str, object]]) -> str:
         if isinstance(text, str):
             parts.append(text)
     return "\n".join(parts)
+
+
+def _classify_llm_error(provider: str, exc: Exception) -> LlmRequestError:
+    reason = str(exc)
+    retry_after_seconds = _extract_retry_after_seconds(reason)
+    lowered_reason = reason.lower()
+
+    if "quota exceeded" in lowered_reason or "quota exhausted" in lowered_reason:
+        return LlmQuotaExceededError(
+            provider=provider,
+            reason=reason,
+            retry_after_seconds=retry_after_seconds,
+        )
+    if "rate limit" in lowered_reason or "resource_exhausted" in lowered_reason:
+        return LlmRateLimitError(
+            provider=provider,
+            reason=reason,
+            retry_after_seconds=retry_after_seconds,
+        )
+    return LlmRequestError(provider=provider, reason=reason)
+
+
+def _extract_retry_after_seconds(reason: str) -> float | None:
+    please_retry_match = re.search(r"Please retry in ([0-9]+(?:\\.[0-9]+)?)s", reason)
+    if please_retry_match is not None:
+        return float(please_retry_match.group(1))
+
+    retry_delay_match = re.search(r"'retryDelay': '([0-9]+)s'", reason)
+    if retry_delay_match is not None:
+        return float(retry_delay_match.group(1))
+
+    return None
+
+
+def _should_retry(
+    error: LlmRequestError,
+    client: LlmClient,
+    attempt: int,
+) -> bool:
+    if attempt >= client.max_retries:
+        return False
+    if isinstance(error, LlmQuotaExceededError):
+        return False
+    if isinstance(error, LlmRateLimitError):
+        return client.retry_on_rate_limit
+    return False
+
+
+def _resolve_sleep_seconds(
+    error: LlmRequestError,
+    backoff_seconds: float,
+) -> float:
+    if isinstance(error, LlmRateLimitError) and error.retry_after_seconds is not None:
+        return error.retry_after_seconds
+    return backoff_seconds
