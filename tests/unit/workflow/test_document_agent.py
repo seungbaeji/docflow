@@ -10,12 +10,12 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 )
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.workflow.document import bind_document_workflow_services
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
 from docflow_agent.workflow.tools import (
     bind_document_agent_tools,
     DocumentAgentToolContext,
 )
+from docflow_agent.testing.document_workflow import build_document_workflow_functions
 
 
 def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
@@ -45,7 +45,7 @@ def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> Pd
 def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> DocumentAgentRuntime:
     repository = InMemoryArtifactRepository()
     runtime_store = InMemoryStore()
-    usecases = bind_document_workflow_services(
+    usecases = build_document_workflow_functions(
         artifact_repository=repository,
         llm_gateway=llm_gateway,
         pdf_client=OpenDataLoaderPdfClient(),

@@ -9,14 +9,14 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.workflow.document import bind_document_workflow_services
+from docflow_agent.testing.document_workflow import build_document_workflow_functions
 
 
 def test_analyze_persists_record_and_vector_document() -> None:
     repository = InMemoryArtifactRepository()
     workflow_run_store = InMemoryWorkflowRunStore()
     vector_store = InMemoryVectorStore()
-    usecases = bind_document_workflow_services(
+    usecases = build_document_workflow_functions(
         artifact_repository=repository,
         workflow_run_store=workflow_run_store,
         vector_store=vector_store,
@@ -45,7 +45,7 @@ def test_analyze_persists_record_and_vector_document() -> None:
 def test_compose_mail_uses_llm_gateway_when_available() -> None:
     repository = InMemoryArtifactRepository()
     llm_gateway = StubDocumentLlmGateway(summary_response="LLM generated mail body")
-    usecases = bind_document_workflow_services(
+    usecases = build_document_workflow_functions(
         artifact_repository=repository,
         llm_gateway=llm_gateway,
     )
@@ -69,7 +69,7 @@ def test_compose_mail_uses_llm_gateway_when_available() -> None:
 def test_send_mail_persists_record() -> None:
     repository = InMemoryArtifactRepository()
     workflow_run_store = InMemoryWorkflowRunStore()
-    usecases = bind_document_workflow_services(
+    usecases = build_document_workflow_functions(
         artifact_repository=repository,
         workflow_run_store=workflow_run_store,
     )
@@ -114,7 +114,7 @@ def test_parse_units_uses_pdf_adapter_for_pdf_source(tmp_path: Path) -> None:
             ],
         )
 
-    usecases = bind_document_workflow_services(
+    usecases = build_document_workflow_functions(
         artifact_repository=repository,
         pdf_client=OpenDataLoaderPdfClient(),
         pdf_parser=fake_pdf_parser,
@@ -159,7 +159,7 @@ def test_summarize_source_ref_returns_human_readable_summary(tmp_path: Path) -> 
             ],
         )
 
-    usecases = bind_document_workflow_services(
+    usecases = build_document_workflow_functions(
         artifact_repository=repository,
         pdf_client=OpenDataLoaderPdfClient(),
         pdf_parser=fake_pdf_parser,
@@ -199,7 +199,7 @@ def test_answer_question_about_source_ref_uses_full_document_payload(tmp_path: P
             ],
         )
 
-    usecases = bind_document_workflow_services(
+    usecases = build_document_workflow_functions(
         artifact_repository=repository,
         llm_gateway=llm_gateway,
         pdf_client=OpenDataLoaderPdfClient(),

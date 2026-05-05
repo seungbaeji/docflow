@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from docflow_agent.workflow.document import DocumentWorkflowServices
+from collections.abc import Callable
+
+from docflow_agent.types.value.results import UsecaseOutcome
 from docflow_agent.workflow.nodes.runtime import (
     WorkflowRuntime,
     enqueue_workflow_message,
@@ -11,17 +13,23 @@ from docflow_agent.workflow.routes import get_human_decision
 from docflow_agent.workflow.state import WorkflowState
 
 
-def filter_dataset_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
+def filter_dataset_node(
+    state: WorkflowState,
+    filter_dataset: Callable[[str], str],
+) -> WorkflowState:
     bundle_ref_id = state["selected_bundle_ref"]["ref_id"]
-    dataset_ref = artifact_ref("dataset", usecases["filter_dataset"](bundle_ref_id))
+    dataset_ref = artifact_ref("dataset", filter_dataset(bundle_ref_id))
     append_artifact_ref(state, "dataset_refs", dataset_ref)
     state["current_step"] = "filter_dataset"
     return state
 
 
-def compose_mail_node(state: WorkflowState, usecases: DocumentWorkflowServices) -> WorkflowState:
+def compose_mail_node(
+    state: WorkflowState,
+    compose_mail: Callable[[str], str],
+) -> WorkflowState:
     dataset_ref_id = state["dataset_refs"][-1]["ref_id"]
-    draft_ref = artifact_ref("draft", usecases["compose_mail"](dataset_ref_id))
+    draft_ref = artifact_ref("draft", compose_mail(dataset_ref_id))
     append_artifact_ref(state, "output_refs", draft_ref)
     state["current_step"] = "compose_mail"
     return state
@@ -29,10 +37,8 @@ def compose_mail_node(state: WorkflowState, usecases: DocumentWorkflowServices) 
 
 def request_send_mail_approval_node(
     state: WorkflowState,
-    usecases: DocumentWorkflowServices,
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
-    del usecases
     decision = get_human_decision(state, "approve_send_mail")
     state["current_step"] = "request_send_mail_approval"
     draft_ref_id = state["output_refs"][-1]["ref_id"]
@@ -76,11 +82,11 @@ def request_send_mail_approval_node(
 
 def send_mail_node(
     state: WorkflowState,
-    usecases: DocumentWorkflowServices,
+    send_mail: Callable[[str], UsecaseOutcome],
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     draft_ref_id = state["output_refs"][-1]["ref_id"]
-    outcome = usecases["send_mail"](draft_ref_id)
+    outcome = send_mail(draft_ref_id)
     result_ref = artifact_ref("result", outcome.ref_id)
     append_artifact_ref(state, "output_refs", result_ref)
     enqueue_workflow_message(
@@ -97,11 +103,11 @@ def send_mail_node(
 
 def reject_send_mail_node(
     state: WorkflowState,
-    usecases: DocumentWorkflowServices,
+    reject_send_mail: Callable[[str | None], UsecaseOutcome],
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     draft_ref_id = state.get("output_refs", [])[-1]["ref_id"] if state.get("output_refs") else None
-    outcome = usecases["reject_send_mail"](draft_ref_id)
+    outcome = reject_send_mail(draft_ref_id)
     result_ref = artifact_ref("result", outcome.ref_id)
     append_artifact_ref(state, "output_refs", result_ref)
     enqueue_workflow_message(

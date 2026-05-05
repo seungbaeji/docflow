@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
 from typing import Any, cast
 
 from langgraph.graph import END, START, StateGraph
 
 from docflow_agent.ports.repositories import ArtifactRepository
-from docflow_agent.workflow.document import DocumentWorkflowServices
+from docflow_agent.types.value.results import UsecaseOutcome
 from docflow_agent.workflow.nodes import (
     WorkflowRuntime,
     analyze_node,
@@ -48,7 +49,17 @@ def _route_mail_approval(state: WorkflowState) -> str:
 
 
 def build_document_workflow(
-    usecases: DocumentWorkflowServices,
+    *,
+    load_source: Callable[[str], str],
+    parse_units: Callable[[str], list[str]],
+    categorize_units: Callable[[list[str]], list[str]],
+    combine_bundle: Callable[[list[str]], str],
+    analyze: Callable[[str], UsecaseOutcome],
+    filter_dataset: Callable[[str], str],
+    compose_mail: Callable[[str], str],
+    send_mail: Callable[[str], UsecaseOutcome],
+    reject_send_mail: Callable[[str | None], UsecaseOutcome],
+    handle_unknown: Callable[[str], UsecaseOutcome],
     artifact_repository: ArtifactRepository,
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
@@ -56,34 +67,32 @@ def build_document_workflow(
     active_workflow_runtime = workflow_runtime or WorkflowRuntime()
     graph = StateGraph(WorkflowState)
     graph.add_node("select_flow", select_flow_node)
-    graph.add_node("load_source", partial(load_source_node, usecases=usecases))
-    graph.add_node("parse_units", partial(parse_units_node, usecases=usecases))
-    graph.add_node("categorize_units", partial(categorize_units_node, usecases=usecases))
-    graph.add_node("combine_bundle", partial(combine_bundle_node, usecases=usecases))
-    graph.add_node("analyze", partial(analyze_node, usecases=usecases))
-    graph.add_node("filter_dataset", partial(filter_dataset_node, usecases=usecases))
-    graph.add_node("compose_mail", partial(compose_mail_node, usecases=usecases))
+    graph.add_node("load_source", partial(load_source_node, load_source=load_source))
+    graph.add_node("parse_units", partial(parse_units_node, parse_units=parse_units))
+    graph.add_node("categorize_units", partial(categorize_units_node, categorize_units=categorize_units))
+    graph.add_node("combine_bundle", partial(combine_bundle_node, combine_bundle=combine_bundle))
+    graph.add_node("analyze", partial(analyze_node, analyze=analyze))
+    graph.add_node("filter_dataset", partial(filter_dataset_node, filter_dataset=filter_dataset))
+    graph.add_node("compose_mail", partial(compose_mail_node, compose_mail=compose_mail))
     graph.add_node(
         "request_send_mail_approval",
         partial(
             request_send_mail_approval_node,
-            usecases=usecases,
             workflow_runtime=active_workflow_runtime,
         ),
     )
     graph.add_node(
-        "send_mail",
-        partial(send_mail_node, usecases=usecases, workflow_runtime=active_workflow_runtime),
+        "send_mail", partial(send_mail_node, send_mail=send_mail, workflow_runtime=active_workflow_runtime),
     )
     graph.add_node(
         "reject_send_mail",
         partial(
             reject_send_mail_node,
-            usecases=usecases,
+            reject_send_mail=reject_send_mail,
             workflow_runtime=active_workflow_runtime,
         ),
     )
-    graph.add_node("unknown", partial(unknown_node, usecases=usecases))
+    graph.add_node("unknown", partial(unknown_node, handle_unknown=handle_unknown))
 
     graph.add_edge(START, "select_flow")
     graph.add_conditional_edges(
@@ -127,12 +136,31 @@ def build_document_workflow(
 
 
 def create_document_workflow(
-    usecases: DocumentWorkflowServices,
+    *,
+    load_source: Callable[[str], str],
+    parse_units: Callable[[str], list[str]],
+    categorize_units: Callable[[list[str]], list[str]],
+    combine_bundle: Callable[[list[str]], str],
+    analyze: Callable[[str], UsecaseOutcome],
+    filter_dataset: Callable[[str], str],
+    compose_mail: Callable[[str], str],
+    send_mail: Callable[[str], UsecaseOutcome],
+    reject_send_mail: Callable[[str | None], UsecaseOutcome],
+    handle_unknown: Callable[[str], UsecaseOutcome],
     artifact_repository: ArtifactRepository,
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
     return build_document_workflow(
-        usecases=usecases,
+        load_source=load_source,
+        parse_units=parse_units,
+        categorize_units=categorize_units,
+        combine_bundle=combine_bundle,
+        analyze=analyze,
+        filter_dataset=filter_dataset,
+        compose_mail=compose_mail,
+        send_mail=send_mail,
+        reject_send_mail=reject_send_mail,
+        handle_unknown=handle_unknown,
         artifact_repository=artifact_repository,
         workflow_runtime=workflow_runtime,
     )

@@ -11,14 +11,14 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 )
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.workflow.document import bind_document_workflow_services
+from docflow_agent.testing.document_workflow import build_document_workflow_kwargs
 
 
 def test_prompt_routes_to_document_process_and_creates_artifact_refs() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=bind_document_workflow_services(artifact_repository=repository),
         artifact_repository=repository,
+        **build_document_workflow_kwargs(artifact_repository=repository),
     )
 
     state = workflow.invoke({"user_input": "엑셀 문서를 분석해줘"})
@@ -35,8 +35,8 @@ def test_prompt_routes_to_document_process_and_creates_artifact_refs() -> None:
 def test_workflow_facade_accepts_human_decisions_and_serializes_state() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=bind_document_workflow_services(artifact_repository=repository),
         artifact_repository=repository,
+        **build_document_workflow_kwargs(artifact_repository=repository),
     )
 
     state = invoke_document_workflow(
@@ -85,12 +85,12 @@ def test_prompt_with_pdf_path_routes_through_pdf_parsing(tmp_path: Path) -> None
         )
 
     workflow = create_document_workflow(
-        usecases=bind_document_workflow_services(
+        artifact_repository=repository,
+        **build_document_workflow_kwargs(
             artifact_repository=repository,
             pdf_client=OpenDataLoaderPdfClient(),
             pdf_parser=fake_pdf_parser,
         ),
-        artifact_repository=repository,
     )
 
     state = workflow.invoke({"user_input": f"이 PDF 파일을 분석해줘 {pdf_path}"})

@@ -10,11 +10,11 @@ from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
-from docflow_agent.workflow.document import bind_document_workflow_services
 from docflow_agent.workflow.tools import (
     bind_document_agent_tools,
     DocumentAgentToolContext,
 )
+from docflow_agent.testing.document_workflow import build_document_workflow_functions
 
 
 def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
@@ -51,7 +51,7 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
         pytest.skip("Configure a real llm provider before running the smoke test.")
 
     container = build_container(settings=settings, pdf_parser=_fake_pdf_parser)
-    usecases = bind_document_workflow_services(
+    usecases = build_document_workflow_functions(
         artifact_repository=container.artifact_repository,
         llm_gateway=container.llm_gateway,
         workflow_run_store=container.workflow_run_store,

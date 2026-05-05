@@ -7,14 +7,14 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
     InMemoryArtifactRepository,
 )
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
-from docflow_agent.workflow.document import bind_document_workflow_services
+from docflow_agent.testing.document_workflow import build_document_workflow_kwargs
 
 
 def test_document_to_mail_stops_for_pending_approval() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=bind_document_workflow_services(artifact_repository=repository),
         artifact_repository=repository,
+        **build_document_workflow_kwargs(artifact_repository=repository),
     )
 
     state = workflow.invoke({"user_input": "엑셀에서 미정산 건을 찾아 메일로 보내줘"})
@@ -29,8 +29,8 @@ def test_document_to_mail_stops_for_pending_approval() -> None:
 def test_document_to_mail_sends_mail_after_approval() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=bind_document_workflow_services(artifact_repository=repository),
         artifact_repository=repository,
+        **build_document_workflow_kwargs(artifact_repository=repository),
     )
 
     state = workflow.invoke(
@@ -57,8 +57,8 @@ def test_document_to_mail_sends_mail_after_approval() -> None:
 def test_document_to_mail_rejects_mail_safely() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=bind_document_workflow_services(artifact_repository=repository),
         artifact_repository=repository,
+        **build_document_workflow_kwargs(artifact_repository=repository),
     )
 
     state = workflow.invoke(
@@ -86,18 +86,17 @@ def test_document_to_mail_workflow_uses_port_backed_usecase_dependencies() -> No
     repository = InMemoryArtifactRepository()
     workflow_run_store = InMemoryWorkflowRunStore()
     queue = InMemoryWorkflowQueue()
-    usecases = bind_document_workflow_services(
-        artifact_repository=repository,
-        llm_gateway=StubDocumentLlmGateway(summary_response="Workflow-generated mail body"),
-        workflow_run_store=workflow_run_store,
-        vector_store=InMemoryVectorStore(),
-    )
     workflow = create_document_workflow(
-        usecases=usecases,
         artifact_repository=repository,
         workflow_runtime=WorkflowRuntime(
             workflow_run_store=workflow_run_store,
             workflow_queue=queue,
+        ),
+        **build_document_workflow_kwargs(
+            artifact_repository=repository,
+            llm_gateway=StubDocumentLlmGateway(summary_response="Workflow-generated mail body"),
+            workflow_run_store=workflow_run_store,
+            vector_store=InMemoryVectorStore(),
         ),
     )
 
@@ -131,17 +130,16 @@ def test_document_to_mail_workflow_records_pending_approval_and_enqueues_request
     repository = InMemoryArtifactRepository()
     workflow_run_store = InMemoryWorkflowRunStore()
     queue = InMemoryWorkflowQueue()
-    usecases = bind_document_workflow_services(
-        artifact_repository=repository,
-        workflow_run_store=workflow_run_store,
-        vector_store=InMemoryVectorStore(),
-    )
     workflow = create_document_workflow(
-        usecases=usecases,
         artifact_repository=repository,
         workflow_runtime=WorkflowRuntime(
             workflow_run_store=workflow_run_store,
             workflow_queue=queue,
+        ),
+        **build_document_workflow_kwargs(
+            artifact_repository=repository,
+            workflow_run_store=workflow_run_store,
+            vector_store=InMemoryVectorStore(),
         ),
     )
 
