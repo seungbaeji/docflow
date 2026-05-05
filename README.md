@@ -79,26 +79,12 @@ src/docflow_agent/
     edit/
     rules/
   outbound/
-    document_automation.py
   types/
     value/
     boundary/
 ```
 
-현재 구현된 최소 흐름은 Excel source를 읽어 sheet unit으로 파싱하고, invoice category를 식별한 뒤 invoice bundle로 결합하고 accounting rule을 검증하는 흐름입니다.
-
-장기적으로는 여기서 끝나지 않고, core가 edit intent를 만들고 outbound가 openpyxl, Excel COM, 또는 RPA로 실제 수정을 실행하는 구조를 목표로 합니다.
-
-## example
-
-프로젝트 루트의 `example/process_excel_invoice.py` 예시로 source 기반 usecase를 바로 실행해볼 수 있습니다.
-현재 예시는 outbound source 로더가 스텁이기 때문에 실제 파일을 읽지 않으며, 전달하는 location은 예시 식별자 역할만 합니다.
-
-예시 실행:
-
-```bash
-uv run python example/process_excel_invoice.py
-```
+현재 구현은 repository-backed workflow와 artifact reference, boundary validation, HITL pending/resume 흐름에 초점을 둡니다.
 
 ## 실행
 
