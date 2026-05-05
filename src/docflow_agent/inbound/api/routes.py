@@ -1,52 +1,142 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+import base64
+from pathlib import Path
+from collections.abc import Mapping
+from uuid import uuid4
+
+from fastapi import APIRouter, HTTPException, Request
 
 from docflow_agent.errors import (
     DocflowError,
     EcmRequestError,
     EcmResponseError,
+    LlmQuotaExceededError,
+    LlmRateLimitError,
+    LlmRequestError,
     MailIntegrationError,
+    MissingLlmApiKeyError,
+    MissingLlmDependencyError,
+    PdfIntegrationError,
     UnsupportedCategoryError,
     UnsupportedLlmProviderError,
     UnsupportedSourceKindError,
 )
-from docflow_agent.types.source import SourceRef
-from docflow_agent.usecases.process_source import process_source
+from docflow_agent.types.boundary.api import (
+    ChatRequest,
+    ChatResponse,
+    ProcessRequest,
+    UploadResponse,
+)
+from docflow_agent.usecases.process_request import process_request, state_to_response
+from docflow_agent.usecases.respond_to_chat import respond_to_chat
+from docflow_agent.usecases.stage_upload import stage_upload
+
 
 router = APIRouter()
 
 
-class ProcessRequest(BaseModel):
-    source_name: str
-    source_location: str
-    source_system: str = "ecm"
-    content_type: str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+def _decode_upload_name(headers: Mapping[str, str]) -> str:
+    if not headers:
+        return ""
+    encoded_name = headers.get("X-Filename-Base64")
+    if isinstance(encoded_name, str) and encoded_name:
+        try:
+            return base64.urlsafe_b64decode(encoded_name.encode("ascii")).decode("utf-8")
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Upload filename header is invalid.") from exc
+    plain_name = headers.get("X-Filename")
+    return plain_name if isinstance(plain_name, str) else ""
+
+
+def _sanitize_upload_name(file_name: str) -> str:
+    safe_name = Path(file_name).name.strip()
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Upload filename is required.")
+    return safe_name
 
 
 @router.post("/process")
-def process(request: ProcessRequest) -> dict[str, object]:
+def process(request: ProcessRequest, app_request: Request) -> dict[str, object]:
     try:
-        result = process_source(
-            SourceRef(
-                name=request.source_name,
-                location=request.source_location,
-                content_type=request.content_type,
-                source_system=request.source_system,
-            )
+        container = app_request.app.state.container
+        state = process_request(
+            artifact_repository=container.artifact_repository,
+            workflow_run_store=container.workflow_run_store,
+            workflow_queue=container.workflow_queue,
+            vector_store=container.vector_store,
+            llm_gateway=container.llm_gateway,
+            pdf_client=container.pdf_client,
+            pdf_parser=container.pdf_parser,
+            user_input=request.user_input,
+            human_decisions=request.to_workflow_human_decisions(),
         )
     except (UnsupportedSourceKindError, UnsupportedCategoryError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PdfIntegrationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except (EcmRequestError, EcmResponseError, MailIntegrationError) as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    except UnsupportedLlmProviderError as exc:
+    except LlmQuotaExceededError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except LlmRateLimitError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except LlmRequestError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (UnsupportedLlmProviderError, MissingLlmApiKeyError, MissingLlmDependencyError) as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except DocflowError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return {
-        "source_kind": result.source_kind,
-        "category": result.category,
-        "success": result.success,
-        "unit_count": result.unit_count,
-        "bundle_data": result.bundle_data,
-        "messages": result.messages,
-    }
+    return state_to_response(state)
+
+
+@router.post("/uploads")
+async def upload_document(app_request: Request) -> UploadResponse:
+    raw_file = await app_request.body()
+    if not raw_file:
+        raise HTTPException(status_code=400, detail="Upload body must not be empty.")
+
+    container = app_request.app.state.container
+    return stage_upload(
+        artifact_repository=container.artifact_repository,
+        session_document_store=container.session_document_store,
+        upload_dir=container.settings.app.upload_dir,
+        session_id=app_request.headers.get("X-Session-Id"),
+        file_name=_sanitize_upload_name(_decode_upload_name(app_request.headers)),
+        content_type=app_request.headers.get("Content-Type", "application/octet-stream"),
+        raw_file=raw_file,
+    )
+
+
+@router.post("/chat")
+def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
+    try:
+        container = app_request.app.state.container
+        session_id = request.session_id or str(uuid4())
+        message = respond_to_chat(
+            artifact_repository=container.artifact_repository,
+            llm_gateway=container.llm_gateway,
+            chat_history_store=container.chat_history_store,
+            runtime_store=container.runtime_store,
+            session_document_store=container.session_document_store,
+            workflow_run_store=container.workflow_run_store,
+            vector_store=container.vector_store,
+            pdf_client=container.pdf_client,
+            pdf_parser=container.pdf_parser,
+            session_id=session_id,
+            message=request.message,
+        )
+    except LlmQuotaExceededError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except LlmRateLimitError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except LlmRequestError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (UnsupportedLlmProviderError, MissingLlmApiKeyError, MissingLlmDependencyError) as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except DocflowError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return ChatResponse(
+        session_id=session_id,
+        message=message,
+        provider=container.settings.llm.provider,
+        model=container.settings.llm.model,
+    )

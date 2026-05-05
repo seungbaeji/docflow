@@ -7,13 +7,18 @@ requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115.0",
   "streamlit>=1.44.0",
+  "uvicorn>=0.32.0",
   "langchain>=0.3.0",
+  "langchain-google-genai>=2.1.0",
   "langchain-openai>=0.3.0",
   "langgraph>=0.2.0",
   "pydantic-settings>=2.6.0",
 ]
 
 [project.optional-dependencies]
+pdf = [
+  "opendataloader-pdf>=2.0.0",
+]
 dev = [
   "pytest>=8.0.0",
   "ruff>=0.11.0",
@@ -25,10 +30,9 @@ docs = [
 ]
 
 [project.scripts]
-app-process = "docflow_agent.cli.process:main"
-app-dev = "docflow_agent.cli.dev:main"
-app-test = "docflow_agent.cli.test:main"
-app-docs = "docflow_agent.cli.docs:main"
+docflow-api = "docflow_agent.entrypoints.api:main"
+docflow-ui = "docflow_agent.entrypoints.ui:main"
+docflow-workflow = "docflow_agent.entrypoints.workflow:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]
@@ -43,6 +47,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+  "real_provider: optional smoke tests that require a real configured LLM provider",
+]
 
 [tool.ruff]
 line-length = 100

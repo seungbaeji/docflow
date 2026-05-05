@@ -1,22 +1,31 @@
 # docflow-agent
 
-다양한 입력 소스를 Agent와 usecase로 오케스트레이션하고, `source -> unit -> bundle` 모델 위에서 문서 해석, 분석, 규칙 검증, 문서 수정 자동화까지 확장할 수 있도록 만든 문서 처리 프레임워크입니다.
+다양한 입력 소스를 처리하면서, `source -> unit -> bundle` 모델 위에서 문서 해석, 분석, 규칙 검증, 문서 수정 자동화까지 확장할 수 있도록 만든 문서 처리 프레임워크입니다.
 
 ## 아키텍처
 
-이 프로젝트는 선형 파이프라인보다 usecase 중심 오케스트레이션을 따릅니다.
+이 프로젝트는 선형 파이프라인보다 `workflow + usecase` 중심 오케스트레이션을 따릅니다.
 
 ```text
-inbound -> usecases
+inbound -> workflow -> usecases
 usecases -> core
 usecases -> outbound
 ```
 
-- `inbound`: FastAPI, Streamlit, LangGraph, CLI 진입점
-- `usecases`: 소스 조회, core 호출, outbound 호출, 결과 조합, 저장/전달 orchestration
+- `inbound`: FastAPI, Streamlit, CLI 같은 진입점
+- `workflow`: 요청 하나의 실행 문맥을 유지하면서 여러 usecase를 연결하는 stateful orchestration object
+- `tools`: agent/tool-calling surface. workflow가 준비한 explicit context를 소비하는 내부 action layer
+- `usecases`: source 조회, core 호출, outbound 호출, 결과 조합, 저장/전달 orchestration
 - `core`: source kind 판단, unit 파싱, category 판단, bundle 결합, 분석, 규칙, edit intent 생성
 - `outbound`: ECM, files, mail, SAP, OCR, LLM, DB, Excel automation, RPA, COM 같은 외부 연동과 실행
-- `types`: source, unit, bundle, external record, edit intent, result 같은 실데이터 구조
+  - `outbound/external`: ECM, SAP, mail, OCR, storage, LLM, PDF parsing 같은 외부 시스템 연동
+  - `outbound/testing`: in-memory repository, rdbms, vector store, queue, llm 같은 테스트/로컬 개발용 어댑터
+- `ports`: repository, llm, rdbms, vector store, queue 같은 usecase/workflow 경계
+- `bootstrap`: settings와 adapter를 조립해 workflow/usecase DI container를 만드는 위치
+- `config`: application settings와 prompt configuration
+- `types`: `value`와 `boundary`로 나뉜 실데이터 구조
+  - `types/value`: 내부에서 신뢰하고 쓰는 `frozen dataclass` value object
+  - `types/boundary`: 외부 입력/출력과 외부 시스템 payload를 담는 `pydantic` boundary DTO
 
 핵심 개념도 바뀌었습니다.
 
@@ -25,14 +34,51 @@ usecases -> outbound
 - `bundle`: 여러 unit을 비즈니스 목적에 맞게 합친 구조
 - `category`: business meaning. 예: invoice, settlement
 - `edit intent`: core가 결정한 수정 명세. 실제 파일/애플리케이션 수정은 outbound가 수행
+- `workflow`: artifact ref와 human decision을 들고 가며 전체 흐름을 이어가는 재개 가능한 실행 단위
 
-core는 구조화된 타입만 다루고 outbound를 전혀 모릅니다. outbound는 외부 응답, 파일, bytes, API 호출뿐 아니라 문서 수정 실행과 애플리케이션 자동화까지 책임집니다.
+core는 구조화된 value object만 다루고 outbound를 전혀 모릅니다. outbound는 외부 응답, 파일, bytes, API 호출뿐 아니라 문서 수정 실행과 애플리케이션 자동화까지 책임집니다.
+
+`types/value`는 내부 value object 전용이고 모두 `frozen dataclass`를 기본으로 합니다. `types/boundary`는 inbound/outbound 경계에서 오가는 `pydantic` DTO를 담고, 외부 입력은 신뢰하지 않는다는 전제로 검증과 정규화를 먼저 수행한 뒤 workflow, usecase, core에는 작은 값 객체만 넘기는 방향을 따릅니다.
+
+`dataclass` 사용 규칙도 고정합니다.
+
+- `dataclass`는 데이터 모델 전용
+- `dataclass`는 `types/*` 안에서만 사용
+- `usecases`, `workflow`, `outbound`, `bootstrap`, `inbound`의 실행 객체는 일반 class 또는 function 사용
+
+## Workflow
+
+이 프로젝트에서 `workflow`는 특정 graph library 이름이 아니라, 요청 하나의 실행 문맥을 관리하는 오케스트레이션 객체를 뜻합니다.
+
+- `entrypoint`: stateless request boundary
+- `workflow`: state/context를 유지하며 여러 단계와 HITL 분기를 이어가는 실행 단위
+- `usecase`: workflow 안에서 호출되는 개별 비즈니스 작업
+
+workflow의 책임:
+
+- 어떤 flow를 실행할지 결정
+- 현재 step과 다음 step 관리
+- 여러 usecase를 올바른 순서로 연결
+- `pending / approve / reject / resume` 같은 HITL 상태 관리
+- state에는 control field와 artifact ref만 두고, 큰 데이터는 repository/store에 보관
+
+현재 구현은 `src/docflow_agent/workflow/` 아래에 있고 LangGraph를 실행 엔진으로 사용하지만, workflow 개념 자체는 LangGraph에 종속되지 않습니다.
+
+기본 wiring은 `src/docflow_agent/bootstrap.py`가 담당합니다. entrypoint는 bootstrap container에서 workflow와 usecase를 받아 실행하고, workflow/usecase는 adapter를 직접 생성하지 않습니다.
+
+외부 agent 노출이 필요해지면 별도 public tool을 두기보다 MCP server를 추가하는 방향을 우선 고려합니다. 현재는 외부 노출용 tool entrypoint를 두지 않습니다.
 
 ## 프로젝트 구조
 
 ```text
 src/docflow_agent/
   inbound/
+    api/
+    ui/
+  config/
+  entrypoints/
+  tools/
+  workflow/
   usecases/
   core/
     source_kind/
@@ -43,25 +89,12 @@ src/docflow_agent/
     edit/
     rules/
   outbound/
-    document_automation.py
   types/
-    edit.py
+    value/
+    boundary/
 ```
 
-현재 구현된 최소 흐름은 Excel source를 읽어 sheet unit으로 파싱하고, invoice category를 식별한 뒤 invoice bundle로 결합하고 accounting rule을 검증하는 흐름입니다.
-
-장기적으로는 여기서 끝나지 않고, core가 edit intent를 만들고 outbound가 openpyxl, Excel COM, 또는 RPA로 실제 수정을 실행하는 구조를 목표로 합니다.
-
-## example
-
-프로젝트 루트의 `example/process_excel_invoice.py` 예시로 source 기반 usecase를 바로 실행해볼 수 있습니다.
-현재 예시는 outbound source 로더가 스텁이기 때문에 실제 파일을 읽지 않으며, 전달하는 location은 예시 식별자 역할만 합니다.
-
-예시 실행:
-
-```bash
-uv run python example/process_excel_invoice.py
-```
+현재 구현은 repository-backed workflow와 artifact reference, boundary validation, HITL pending/resume 흐름에 초점을 둡니다.
 
 ## 실행
 
@@ -71,12 +104,76 @@ uv run python example/process_excel_invoice.py
 pytest
 ```
 
-CLI 엔트리포인트는 다음과 같습니다.
+실행용 엔트리포인트는 다음과 같습니다.
 
-- `app-process`
-- `app-dev`
-- `app-test`
-- `app-docs`
+- `docflow-api`: FastAPI 서버 실행
+- `docflow-ui`: Streamlit UI 실행
+- `docflow-workflow`: prompt 기반 workflow 실행
+
+빠르게 API와 UI를 함께 띄워보려면 터미널을 두 개 열어 아래처럼 실행하면 됩니다.
+
+```bash
+# terminal 1
+uv run docflow-api
+
+# terminal 2
+uv run docflow-ui
+```
+
+실행 시 `.env` 경로와 바인딩 주소를 인자로 덮어쓸 수도 있습니다.
+
+```bash
+uv run docflow-api --env-file .env.local --host 0.0.0.0 --port 8010
+uv run docflow-ui --env-file .env.local --host 0.0.0.0 --port 8502 --api-base-url http://127.0.0.1:8010
+```
+
+개별 실행 예시:
+
+```bash
+uv run docflow-workflow "엑셀 문서를 분석해줘"
+uv run docflow-workflow "엑셀에서 미정산 건을 찾아 메일로 보내줘" --approve-send-mail approve
+```
+
+기본 API 주소는 `http://127.0.0.1:8000`입니다. 설정은 `.env`, environment variable, 또는 entrypoint 인자로 주입할 수 있습니다. 예를 들면 `DOCFLOW_AGENT_API__PORT=8010`처럼 바꾸거나, 실행 시 `--port 8010`으로 덮어쓸 수 있습니다.
+
+PDF parsing adapter는 OpenDataLoader PDF를 기준으로 구현되어 있습니다. 공식 문서 기준으로 Python 3.10+와 Java 11+가 필요하고, `convert()` 호출마다 JVM 프로세스를 띄우므로 파일 단건 반복 호출보다 batch 호출을 우선하는 쪽이 권장됩니다. PDF 기능을 쓰려면 `uv sync --extra pdf` 또는 `scripts/setup_opendataloader_pdf.sh`를 먼저 실행하세요.
+
+현재 workflow graph를 그림/텍스트로 뽑아보려면 아래 스크립트를 사용할 수 있습니다.
+
+```bash
+uv run python scripts/export_workflow_graph.py --format mermaid
+uv run python scripts/export_workflow_graph.py --format ascii
+uv run python scripts/export_workflow_graph.py --format png --output tmp/document_workflow_graph.png
+```
+
+UI는 현재 Streamlit 기반의 local chat app입니다.
+
+- 멀티턴 대화
+- 문서 파일 업로드
+- 업로드한 파일 바로 분석 요청
+- system prompt는 `src/docflow_agent/config/prompt.py`에서 관리
+- 백엔드 `session_id` 기준 대화 히스토리 유지
+
+브라우저 UI는 FastAPI `POST /chat` endpoint를 호출하는 thin client입니다. 따라서 UI를 쓰려면 API 서버가 먼저 떠 있어야 합니다. 기본 연결 주소는 `DOCFLOW_AGENT_API__PUBLIC_BASE_URL`이며, 기본값은 `http://127.0.0.1:8000`입니다.
+
+업로드된 파일은 백엔드가 `DOCFLOW_AGENT_APP__UPLOAD_DIR` 아래에 저장하고, UI는 저장된 경로를 사용해 `/process`로 분석 요청을 보냅니다.
+
+현재 API는 두 surface를 제공합니다.
+
+- `POST /process`: workflow 실행
+- `POST /chat`: LLM chat 실행
+- `POST /uploads`: 문서 파일 업로드
+
+예시:
+
+```bash
+curl -X POST http://127.0.0.1:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message":"이어서 한 문장 더 설명해줘",
+    "session_id":"session-001"
+  }'
+```
 
 ## 문서 수정과 자동화
 
@@ -97,10 +194,10 @@ CLI 엔트리포인트는 다음과 같습니다.
 
 이 프로젝트는 `inbound`나 `outbound`를 위해 별도의 abstract adapter interface를 먼저 만들지 않습니다. 대신 실제 모듈을 직접 호출하고, 필요한 경계는 함수 호출 지점에서 `monkeypatch`, fake object, `tmp_path` 같은 테스트 도구로 제어합니다.
 
-- `core`: 순수 함수 중심으로 직접 unit test
-- `usecases`: outbound 호출 지점을 `monkeypatch`로 바꿔 orchestration 검증
-- `outbound`: fake response와 로컬 파일 기반 integration test
-- `inbound`: 가능한 얇게 유지하고 usecase 호출과 error translation만 검증
+- `core`: `tests/unit/core`
+- `usecases`: `tests/unit/usecases`
+- `workflow`: `tests/unit/workflow`
+- `outbound`: `tests/integration/outbound`
 
 이 접근은 provider abstraction보다 문서 해석과 business rule에 복잡성이 집중된 현재 구조에 더 잘 맞습니다.
 

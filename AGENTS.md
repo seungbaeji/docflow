@@ -2,316 +2,143 @@
 
 ## Goal
 
-Build a document-processing service that is:
-- easy for junior developers
-- locally testable
-- safe to extend
+Build a document-processing service that is easy for junior developers, locally testable, and safe to extend.
 
-The system processes data from ECM, Mail, SAP, and external APIs.
+Main complexity:
 
-The main complexity is:
 - document interpretation
 - multi-source combination
-- business rules (accounting)
+- accounting/business rules
 
----
+## Architecture
 
-## Core Architecture
+Use this dependency shape:
 
-Use this structure:
+```text
+inbound -> workflow -> usecases
+usecases -> core
+usecases -> outbound
+```
 
-inbound → usecases
+Rules:
 
-Usecases may call:
-- core
-- outbound
+- `core` must not call `outbound`
+- `outbound` must not call `core`
+- `inbound` is entrypoint only
+- `workflow` is its own layer, not part of `inbound`
+- `tools` is its own layer for agent/tool-calling actions, not part of `workflow`
 
-Usecases orchestrate both core and outbound.
-Core must NOT call outbound.
-Outbound must NOT call core.
+## Workflow
 
----
+`workflow` is a stateful orchestration object, not a framework synonym.
+
+Responsibilities:
+
+- choose and advance flow steps
+- connect multiple usecases
+- manage small state and context
+- manage HITL pending / approve / reject / resume
+- keep only control fields and artifact refs in state
+
+Rules:
+
+- large data must live in repository/store, not workflow state
+- current implementation may use LangGraph, but workflow concept is not LangGraph-specific
+- entrypoints are stateless; workflow owns execution context
 
 ## Layers
 
-### inbound/
+### inbound
 
-Entry points only:
-- FastAPI
-- Streamlit
-- LangGraph
-- CLI
-
-Rules:
-- must call usecases only
-- no business logic here
-
----
-
-### usecases/
-
-Orchestration layer.
-
-Responsibilities:
-- fetch data from outbound
-- call core logic
-- combine results
-- persist or send results
-
-Rules:
+- FastAPI, Streamlit, CLI entrypoints
+- call workflow or usecases only
 - no business logic
+
+### usecases
+
+- orchestrate core + outbound
+- no business rules
 - no parsing logic
-- no direct DB/ECM logic
-- must not depend on file formats or automation tools
+- no direct file/automation details
 
----
+### tools
 
-### core/
+- internal agent/tool-calling action surface
+- consume explicit prepared context from workflow
+- do not own workflow state transitions
+- do not decide current document or session state
 
-Main processing logic.
+### core
 
-#### source_kind/
-Determine source type (excel, pdf, image, mail, sap)
+- source_kind, parse, category, combine, analyze, edit, rules
+- structured data only
+- no files, UI automation, or outbound imports
+- `edit` produces structured edit intents only
 
-#### parse/
-Read source and produce units
+### outbound
 
-#### category/
-Determine business meaning of units or bundles
+- external systems and representation
+- ECM, SAP, mail, OCR, LLM, storage, queue, DB, file automation
+- fetch/persist data, convert external responses, apply edit intents, run automation
+- no business rules or classification
 
-#### combine/
-Combine multiple units into business bundles
+### ports
 
-#### analyze/
-Perform analysis (aggregation, matching, etc.)
+- boundary interfaces used by usecases/workflow
+- examples: repository, llm, rdbms, vector_store, queue
 
-#### edit/
-Produce structured edit intents (no file or UI logic)
+### bootstrap
 
-#### rules/
-Business rules (accounting, invoice, settlement, validation)
+- provide the default DI container
+- build settings, repositories, gateways, workflow runtime, and usecases in one place
+- entrypoints should use bootstrap wiring rather than instantiating adapters inline
 
-Rules:
-- core must not call outbound
-- core operates on structured data only
-- core must not depend on Excel, files, or UI automation
-- core must not know how edits are applied
+### types
 
----
-
-### outbound/
-
-External systems and representation.
-
-Includes:
-- ECM
-- files
-- mail
-- SAP
-- OCR
-- LLM
-- database
-- document automation (Excel, RPA, COM)
-
-Responsibilities:
-- fetch/persist data
-- convert structured data to bytes/files
-- convert external responses to typed structures
-- load sources from ECM, mail, SAP/API, files, or other external systems
-- convert files, bytes, and external responses into typed structures
-- apply edit intents to documents
-- execute application-level automation when required (Excel, RPA, COM)
-- manage external application sessions and execution lifecycle
+- `types/value`: `frozen dataclass` value object only
+- `types/boundary`: `pydantic` boundary DTO and external payload shape
+- explicit real data shapes
+- acyclic imports only
 
 Rules:
-- no business logic
-- no classification
-- no rules
-- must not import core
-- must encapsulate all file libraries and automation tools
 
----
+- `core` uses `types/value` only
+- `types/value` must not import `types/boundary`
+- `dataclass` is for data models only and must live under `types`
+- do not use `dataclass` in `usecases`, `workflow`, `outbound`, `bootstrap`, or `inbound`
+- treat all external input as untrusted
+- validate or normalize external input at inbound/outbound boundaries before converting to value objects
 
-## Types
+## Data Rules
 
-### types/
-
-Typed structures.
-
-Includes:
-- source types
-- parsed structures
-- units
-- bundles
-- edit intents
-- db records (when needed)
-- results
-
-Rules:
-- use dataclasses
-- reflect real data shapes
-- allow multiple explicit types
-- allow nested structures
-- avoid unnecessary abstraction
-- imports between types modules must remain acyclic
-
----
-
-## Dependency Rules
-
-Allowed:
-- inbound → usecases
-- usecases → core
-- usecases → outbound
-- core → core
-- outbound → outbound
-
-Forbidden:
-- core → outbound
-- core → usecases
-- outbound → core
-- inbound → core
-
----
-
-## Import Rules
-
-- inbound → usecases, types
-- usecases → core, outbound, types
-- core → core, types
-- outbound → outbound, types
-- types → (no imports from other layers)
-- types → types only if acyclic
-- shared errors may live in root `errors.py`
-- circular imports are not allowed
-
----
-
-## Data Flow
-
-source → parse → unit → category → combine → analyze → rules → edit
-
----
-
-## Document Editing / Automation
-
-- core must produce structured edit intents only
-- outbound must apply edit intents to documents
-- file libraries (e.g. openpyxl) must stay in outbound
-- automation tools (Excel COM, RPA) must stay in outbound
-- workbook, worksheet, or UI automation objects must not escape outbound
-- usecases must not depend on file or automation implementation details
-
-Execution rules:
-- prefer file-level processing (e.g. openpyxl) by default
-- use application-level automation (Excel, RPA) only when required
-- outbound is responsible for choosing execution strategy
-
-Automation responsibilities (outbound):
-- manage application sessions (start, reuse, terminate)
-- handle file locks and concurrent access
-- handle timeouts and retries
-- handle popups or blocking states
-- ensure document save correctness
-- optionally verify results after write (read-back validation)
-- trigger recalculation when needed
-
----
-
-## Binary Handling
-
+- flow: `source -> parse -> unit -> category -> combine -> analyze -> rules -> edit`
 - core uses structured types only
-- outbound handles bytes and file conversion
-- bytes are external transfer format only
+- outbound handles bytes/files/external SDKs
+- workbook, worksheet, dataframe, OCR text blobs, mail attachments, UI objects must not escape outbound
 
----
+## Testing
 
-## Database Rules
+- `tests/unit/core`
+- `tests/unit/usecases`
+- `tests/unit/workflow`
+- `tests/integration/outbound`
 
-- database logic stays in outbound/db
-- SQLAlchemy must not be imported outside outbound
-- only map persistence-relevant types
-- do not map processing units or bundles
+Rules:
 
----
-
-## CLI
-
-- must call usecases only
-- no logic inside CLI
-
----
-
-## LangGraph
-
-- orchestration only
-- nodes call usecases
-- no business logic in graph
-
----
+- tests must run locally
+- no real external systems
+- use fixtures, fake objects, monkeypatch, tmp files
 
 ## Design Rules
 
 - use type hints everywhere
-- prefer functions over classes
+- prefer small functions over unnecessary classes
 - keep modules small
-- avoid generic names (logic, manager, util)
 - use explicit names
-- keep shared custom errors in root `errors.py`
+- shared custom errors may live in `errors.py`
 
----
+## Constraint
 
-## Error Rules
+Optimize for document complexity, not provider abstraction.
 
-- shared custom errors may live in root `errors.py`
-- core raises business errors
-- outbound raises integration errors (file, automation, external systems)
-- usecases may propagate errors or raise orchestration-specific errors
-- inbound translates errors into user-friendly outputs
-- do not define custom errors inside inbound
-
----
-
-## Testing
-
-### Unit
-- core logic
-- rules
-- source kind
-- parse
-- category
-- combine
-- edit
-- usecases
-
-### Integration
-- outbound modules
-- file handlers
-- document automation (RPA, Excel)
-
-Rules:
-- must run locally
-- no real external systems
-- use fixtures or monkeypatch
-- automation tests may be optional if environment-dependent
-
----
-
-## Development Flow
-
-1. define types
-2. parse source
-3. categorize units
-4. combine if needed
-5. analyze combined bundles
-6. apply rules
-7. produce edit intents
-8. orchestrate in usecase
-9. apply edits via outbound
-10. test
-
----
-
-## Important Constraint
-
-Focus on document complexity, not provider abstraction.
+If external agent exposure is needed later, prefer adding MCP as a separate public interface rather than exposing workflow through ad hoc public tools.

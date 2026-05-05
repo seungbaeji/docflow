@@ -12,52 +12,65 @@
 
 - 순수 함수 중심의 `core`
 - 얇은 orchestration 역할의 `usecases`
+- state/context를 관리하는 `workflow`
 - 작은 함수와 client로 나뉜 `outbound`
 - `monkeypatch`, fake response, `tmp_path` 같은 로컬 테스트 도구
 
 ## 레이어별 테스트 방법
 
-### core
-
-`core`는 structured type을 받아 structured result를 돌려주는 순수 함수 중심으로 유지합니다.
-
-- mock 없이 직접 호출
-- dataclass 입력을 만들고 결과만 검증
-- business rule과 category 판단을 집중적으로 테스트
-
-예시:
-- `tests/test_category_invoice.py`
-- `tests/test_invoice_rule.py`
-- `tests/test_edit_invoice.py`
-
 ### usecases
 
-`usecases`는 orchestration만 담당하므로, 내부에서 호출하는 outbound 함수를 `monkeypatch`로 바꿔 흐름을 검증합니다.
+`usecases`는 orchestration만 담당하므로, repository/store/queue 같은 경계를 fake 또는 in-memory adapter로 바꿔 흐름을 검증합니다.
 
 검증 대상:
-- 어떤 outbound를 호출하는지
-- core 결과를 어떻게 조합하는지
-- unsupported flow에서 어떤 에러를 올리는지
+
+- artifact를 어떻게 만들고 이어붙이는지
+- record/vector/llm port를 어떻게 호출하는지
+- unsupported flow에서 어떤 결과를 남기는지
 
 예시:
-- `tests/test_process_source.py`
 
-이 테스트에서는 `docflow_agent.usecases.process_source` 내부의 `load_spreadsheet_source`를 직접 바꿔 끼웁니다. 별도 port나 abstract adapter 없이도 흐름 검증이 가능합니다.
+- `tests/unit/usecases/test_document_workflow.py`
+- `tests/unit/usecases/test_bootstrap.py`
+
+### workflow
+
+`workflow`는 여러 usecase를 연결하고 state/context를 관리하는 상위 오케스트레이션 객체입니다.
+
+현재 구현은 LangGraph를 사용하지만, 테스트 대상은 framework 자체가 아니라 다음 동작입니다.
+
+- route 선택
+- 단계 전이
+- artifact ref 생성
+- state safety
+- human-in-the-loop pending / approve / reject / resume
+
+예시:
+
+- `tests/unit/workflow/test_route_flow.py`
+- `tests/unit/workflow/test_state_safety.py`
+- `tests/unit/workflow/test_workflow_document_to_mail.py`
+
+즉 workflow 테스트는 "LangGraph 라이브러리 검증"이 아니라 "workflow layer가 표현한 우리 흐름 검증"입니다.
 
 ### outbound
 
 `outbound`는 진짜 외부 시스템 대신 로컬 fake와 monkeypatch를 사용합니다.
 
 패턴:
+
 - HTTP 호출: `urlopen` monkeypatch
 - 파일 처리: `tmp_path`
 - 응답 객체: 작은 fake class 직접 작성
-- automation 실행기: strategy와 결과 값 검증
+- queue/rdbms/vector store: in-memory adapter 동작 검증
 
 예시:
-- `tests/test_ecm.py`
-- `tests/test_llm.py`
-- `tests/test_document_automation.py`
+
+- `tests/integration/outbound/test_ecm.py`
+- `tests/integration/outbound/test_llm.py`
+- `tests/integration/outbound/test_rdbms.py`
+- `tests/integration/outbound/test_vector_store.py`
+- `tests/integration/outbound/test_queue.py`
 
 즉 outbound는 "provider를 인터페이스로 감싸서 테스트"하는 것이 아니라 "외부 부작용을 로컬 fake로 바꿔서 테스트"합니다.
 
