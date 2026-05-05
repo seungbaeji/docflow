@@ -4,7 +4,13 @@ from fastapi.testclient import TestClient
 
 from docflow_agent.bootstrap import build_container
 from docflow_agent.config.prompt import DEFAULT_CHAT_SYSTEM_PROMPT
-from docflow_agent.config.settings import ApiSettings, AppSettings, LlmSettings, Settings
+from docflow_agent.config.settings import (
+    ApiSettings,
+    AppSettings,
+    LlmSettings,
+    Settings,
+    UiSettings,
+)
 from docflow_agent.errors import LlmQuotaExceededError
 from docflow_agent.inbound.api.server import create_app
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
@@ -16,6 +22,7 @@ def _settings_without_env() -> Settings:
     return Settings.model_construct(
         app=AppSettings(),
         api=ApiSettings(),
+        ui=UiSettings(),
         llm=LlmSettings(),
     )
 

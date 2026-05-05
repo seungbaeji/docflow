@@ -4,7 +4,13 @@ import types
 import pytest
 from pydantic import SecretStr
 
-from docflow_agent.config.settings import ApiSettings, AppSettings, LlmSettings, Settings
+from docflow_agent.config.settings import (
+    ApiSettings,
+    AppSettings,
+    LlmSettings,
+    Settings,
+    UiSettings,
+)
 from docflow_agent.errors import (
     LlmQuotaExceededError,
     LlmRequestError,
@@ -28,6 +34,7 @@ def _settings_without_env(**overrides: object) -> Settings:
     base_settings = Settings.model_construct(
         app=AppSettings(),
         api=ApiSettings(),
+        ui=UiSettings(),
         llm=LlmSettings(),
     )
     if not overrides:
@@ -287,6 +294,7 @@ def test_build_llm_client_raises_for_unsupported_provider() -> None:
     invalid_settings = Settings.model_construct(
         app=_settings_without_env().app,
         api=_settings_without_env().api,
+        ui=_settings_without_env().ui,
         llm=_settings_without_env().llm.model_construct(provider="invalid"),
     )
 

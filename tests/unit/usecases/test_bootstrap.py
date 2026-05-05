@@ -1,5 +1,11 @@
 from docflow_agent.bootstrap import build_container
-from docflow_agent.config.settings import ApiSettings, AppSettings, LlmSettings, Settings
+from docflow_agent.config.settings import (
+    ApiSettings,
+    AppSettings,
+    LlmSettings,
+    Settings,
+    UiSettings,
+)
 from docflow_agent.outbound.testing.chat_history import InMemoryChatHistoryStore
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
@@ -14,6 +20,7 @@ def _settings_without_env() -> Settings:
     return Settings.model_construct(
         app=AppSettings(),
         api=ApiSettings(),
+        ui=UiSettings(),
         llm=LlmSettings(),
     )
 

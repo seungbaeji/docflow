@@ -112,6 +112,13 @@ uv run docflow-api
 uv run docflow-ui
 ```
 
+실행 시 `.env` 경로와 바인딩 주소를 인자로 덮어쓸 수도 있습니다.
+
+```bash
+uv run docflow-api --env-file .env.local --host 0.0.0.0 --port 8010
+uv run docflow-ui --env-file .env.local --host 0.0.0.0 --port 8502 --api-base-url http://127.0.0.1:8010
+```
+
 개별 실행 예시:
 
 ```bash
@@ -119,7 +126,7 @@ uv run docflow-workflow "엑셀 문서를 분석해줘"
 uv run docflow-workflow "엑셀에서 미정산 건을 찾아 메일로 보내줘" --approve-send-mail approve
 ```
 
-기본 API 주소는 `http://127.0.0.1:8000`입니다. 설정은 `.env` 또는 environment variable로 주입할 수 있고, 예를 들면 `DOCFLOW_AGENT_API__PORT=8010`처럼 바꿀 수 있습니다.
+기본 API 주소는 `http://127.0.0.1:8000`입니다. 설정은 `.env`, environment variable, 또는 entrypoint 인자로 주입할 수 있습니다. 예를 들면 `DOCFLOW_AGENT_API__PORT=8010`처럼 바꾸거나, 실행 시 `--port 8010`으로 덮어쓸 수 있습니다.
 
 UI는 현재 Streamlit 기반의 local chat app입니다.
 
