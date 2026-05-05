@@ -7,8 +7,8 @@ from docflow_agent.bootstrap import build_container
 from docflow_agent.workflow.document import mail as document_mail
 from docflow_agent.workflow.document import parse as document_parse
 from docflow_agent.workflow.document import source as document_source
-from docflow_agent.workflow.document_workflow import create_document_workflow
 from docflow_agent.workflow.nodes import WorkflowRuntime
+from docflow_agent.workflow.process import build_workflow
 
 
 def build_document_workflow_graph() -> Any:
@@ -17,8 +17,7 @@ def build_document_workflow_graph() -> Any:
         workflow_run_store=container.workflow_run_store,
         workflow_queue=container.workflow_queue,
     )
-    workflow = create_document_workflow(
-        artifact_repository=container.artifact_repository,
+    workflow = build_workflow(
         workflow_runtime=workflow_runtime,
         load_source=lambda user_input: document_source.load_source(
             container.artifact_repository,

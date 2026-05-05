@@ -6,7 +6,6 @@ from typing import Any, cast
 
 from langgraph.graph import END, START, StateGraph
 
-from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.types.value.results import UsecaseOutcome
 from docflow_agent.workflow.nodes import (
     WorkflowRuntime,
@@ -23,32 +22,11 @@ from docflow_agent.workflow.nodes import (
     send_mail_node,
     unknown_node,
 )
+from docflow_agent.workflow.process.routing import route_mail_approval, route_selected_flow
 from docflow_agent.workflow.state import HumanDecision, WorkflowState
 
 
-def _route_selected_flow(state: WorkflowState) -> str:
-    return state["flow"]
-
-
-def _route_mail_approval(state: WorkflowState) -> str:
-    decision = state.get("pending_human_decision")
-    if decision is not None and decision.get("selected") is None:
-        return "awaiting_approval"
-
-    selected = next(
-        (
-            item["selected"]
-            for item in state.get("human_decisions", [])
-            if item["decision_id"] == "approve_send_mail"
-        ),
-        None,
-    )
-    if selected == "approve":
-        return "approved"
-    return "rejected"
-
-
-def build_document_workflow(
+def build_workflow(
     *,
     load_source: Callable[[str], str],
     parse_units: Callable[[str], list[str]],
@@ -60,10 +38,8 @@ def build_document_workflow(
     send_mail: Callable[[str], UsecaseOutcome],
     reject_send_mail: Callable[[str | None], UsecaseOutcome],
     handle_unknown: Callable[[str], UsecaseOutcome],
-    artifact_repository: ArtifactRepository,
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
-    del artifact_repository
     active_workflow_runtime = workflow_runtime or WorkflowRuntime()
     graph = StateGraph(WorkflowState)
     graph.add_node("select_flow", select_flow_node)
@@ -76,13 +52,11 @@ def build_document_workflow(
     graph.add_node("compose_mail", partial(compose_mail_node, compose_mail=compose_mail))
     graph.add_node(
         "request_send_mail_approval",
-        partial(
-            request_send_mail_approval_node,
-            workflow_runtime=active_workflow_runtime,
-        ),
+        partial(request_send_mail_approval_node, workflow_runtime=active_workflow_runtime),
     )
     graph.add_node(
-        "send_mail", partial(send_mail_node, send_mail=send_mail, workflow_runtime=active_workflow_runtime),
+        "send_mail",
+        partial(send_mail_node, send_mail=send_mail, workflow_runtime=active_workflow_runtime),
     )
     graph.add_node(
         "reject_send_mail",
@@ -97,20 +71,19 @@ def build_document_workflow(
     graph.add_edge(START, "select_flow")
     graph.add_conditional_edges(
         "select_flow",
-        _route_selected_flow,
+        route_selected_flow,
         {
             "document_process": "load_source",
             "document_to_mail": "load_source",
             "unknown": "unknown",
         },
     )
-
     graph.add_edge("load_source", "parse_units")
     graph.add_edge("parse_units", "categorize_units")
     graph.add_edge("categorize_units", "combine_bundle")
     graph.add_conditional_edges(
         "combine_bundle",
-        _route_selected_flow,
+        route_selected_flow,
         {
             "document_process": "analyze",
             "document_to_mail": "filter_dataset",
@@ -122,7 +95,7 @@ def build_document_workflow(
     graph.add_edge("compose_mail", "request_send_mail_approval")
     graph.add_conditional_edges(
         "request_send_mail_approval",
-        _route_mail_approval,
+        route_mail_approval,
         {
             "awaiting_approval": END,
             "approved": "send_mail",
@@ -135,38 +108,7 @@ def build_document_workflow(
     return graph.compile()
 
 
-def create_document_workflow(
-    *,
-    load_source: Callable[[str], str],
-    parse_units: Callable[[str], list[str]],
-    categorize_units: Callable[[list[str]], list[str]],
-    combine_bundle: Callable[[list[str]], str],
-    analyze: Callable[[str], UsecaseOutcome],
-    filter_dataset: Callable[[str], str],
-    compose_mail: Callable[[str], str],
-    send_mail: Callable[[str], UsecaseOutcome],
-    reject_send_mail: Callable[[str | None], UsecaseOutcome],
-    handle_unknown: Callable[[str], UsecaseOutcome],
-    artifact_repository: ArtifactRepository,
-    workflow_runtime: WorkflowRuntime | None = None,
-) -> Any:
-    return build_document_workflow(
-        load_source=load_source,
-        parse_units=parse_units,
-        categorize_units=categorize_units,
-        combine_bundle=combine_bundle,
-        analyze=analyze,
-        filter_dataset=filter_dataset,
-        compose_mail=compose_mail,
-        send_mail=send_mail,
-        reject_send_mail=reject_send_mail,
-        handle_unknown=handle_unknown,
-        artifact_repository=artifact_repository,
-        workflow_runtime=workflow_runtime,
-    )
-
-
-def invoke_document_workflow(
+def invoke_workflow(
     user_input: str,
     workflow: Any,
     human_decisions: list[HumanDecision] | None = None,
@@ -177,7 +119,7 @@ def invoke_document_workflow(
     return cast(WorkflowState, workflow.invoke(initial_state))
 
 
-def workflow_state_to_response(state: WorkflowState) -> dict[str, object]:
+def state_to_response(state: WorkflowState) -> dict[str, object]:
     response: dict[str, object] = {
         "flow": state.get("flow", "unknown"),
         "current_step": state.get("current_step", ""),

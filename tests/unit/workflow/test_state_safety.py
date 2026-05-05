@@ -1,9 +1,9 @@
 from typing import Any
 
-from docflow_agent.workflow.document_workflow import create_document_workflow
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
+from docflow_agent.workflow.process import build_workflow
 from support.document_workflow import build_document_workflow_kwargs
 
 
@@ -19,10 +19,7 @@ def _assert_no_unsafe_payloads(value: Any) -> None:
 
 def test_workflow_state_contains_only_small_control_data_and_refs() -> None:
     repository = InMemoryArtifactRepository()
-    workflow = create_document_workflow(
-        artifact_repository=repository,
-        **build_document_workflow_kwargs(artifact_repository=repository),
-    )
+    workflow = build_workflow(**build_document_workflow_kwargs(artifact_repository=repository))
 
     state = workflow.invoke({"user_input": "엑셀 문서를 분석해줘"})
 

@@ -12,11 +12,8 @@ from docflow_agent.workflow.document import chat as document_chat
 from docflow_agent.workflow.document import mail as document_mail
 from docflow_agent.workflow.document import parse as document_parse
 from docflow_agent.workflow.document import source as document_source
-from docflow_agent.workflow.document_agent import DocumentAgentRuntime
-from docflow_agent.workflow.document_chat_workflow import (
-    build_document_chat_workflow,
-    invoke_document_chat_workflow,
-)
+from docflow_agent.workflow.agent import AgentRuntime
+from docflow_agent.workflow.chat import build_workflow, invoke_workflow
 
 
 def respond_to_chat(
@@ -31,7 +28,7 @@ def respond_to_chat(
     if (current_source_ref is not None or current_upload_id is not None) and _requires_document_agent(
         message
     ):
-        prep_workflow = build_document_chat_workflow(
+        prep_workflow = build_workflow(
             artifact_repository=container.artifact_repository,
             session_document_store=container.session_document_store,
             source_from_upload=lambda upload_id: document_source.source_from_upload(
@@ -59,7 +56,7 @@ def respond_to_chat(
                 vector_store=container.vector_store,
             ),
         )
-        prep_state = invoke_document_chat_workflow(
+        prep_state = invoke_workflow(
             workflow=prep_workflow,
             session_id=session_id,
             message=message,
@@ -77,7 +74,7 @@ def respond_to_chat(
             pdf_client=container.pdf_client,
             pdf_parser=container.pdf_parser,
         )
-        document_agent_runtime = DocumentAgentRuntime(
+        document_agent_runtime = AgentRuntime(
             llm_gateway=container.llm_gateway,
             tools=DOCUMENT_AGENT_TOOLS,
             tool_context=DocumentAgentToolContext(

@@ -31,7 +31,7 @@ from docflow_agent.workflow.requests import (
     respond_to_chat,
     stage_upload,
 )
-from docflow_agent.workflow.document_workflow import workflow_state_to_response
+from docflow_agent.workflow.process import state_to_response
 
 
 router = APIRouter()
@@ -82,7 +82,7 @@ def process(request: ProcessRequest, app_request: Request) -> dict[str, object]:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except DocflowError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return workflow_state_to_response(state)
+    return state_to_response(state)
 
 
 @router.post("/uploads")

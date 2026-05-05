@@ -6,12 +6,8 @@ from docflow_agent.bootstrap import get_container
 from docflow_agent.workflow.document import mail as document_mail
 from docflow_agent.workflow.document import parse as document_parse
 from docflow_agent.workflow.document import source as document_source
-from docflow_agent.workflow.document_workflow import (
-    create_document_workflow,
-    invoke_document_workflow,
-    workflow_state_to_response,
-)
 from docflow_agent.workflow.nodes import WorkflowRuntime
+from docflow_agent.workflow.process import build_workflow, invoke_workflow, state_to_response
 from docflow_agent.workflow.state import HumanDecision
 
 
@@ -50,8 +46,7 @@ def main() -> None:
         workflow_run_store=container.workflow_run_store,
         workflow_queue=container.workflow_queue,
     )
-    workflow = create_document_workflow(
-        artifact_repository=container.artifact_repository,
+    workflow = build_workflow(
         workflow_runtime=workflow_runtime,
         load_source=lambda user_input: document_source.load_source(
             container.artifact_repository,
@@ -102,9 +97,9 @@ def main() -> None:
             workflow_run_store=container.workflow_run_store,
         ),
     )
-    state = invoke_document_workflow(
+    state = invoke_workflow(
         user_input=args.user_input,
         workflow=workflow,
         human_decisions=_build_human_decisions(args.approve_send_mail),
     )
-    print(workflow_state_to_response(state))
+    print(state_to_response(state))

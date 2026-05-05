@@ -10,7 +10,7 @@ from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
 from docflow_agent.types.value.document_agent import DocumentAgentToolContext
-from docflow_agent.workflow.document_agent import DocumentAgentRuntime
+from docflow_agent.workflow.agent import AgentRuntime
 from docflow_agent.tools import DOCUMENT_AGENT_TOOLS
 from support.document_workflow import build_document_workflow_functions
 
@@ -70,7 +70,7 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
     document_payload = usecases["build_payload"](source_ref_id)
     document_summary = usecases["summarize_ref"](source_ref_id)
 
-    runtime = DocumentAgentRuntime(
+    runtime = AgentRuntime(
         llm_gateway=container.llm_gateway,
         tools=DOCUMENT_AGENT_TOOLS,
         tool_context=DocumentAgentToolContext(

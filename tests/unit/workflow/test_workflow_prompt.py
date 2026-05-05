@@ -1,25 +1,18 @@
 from pathlib import Path
 
 from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
-from docflow_agent.workflow.document_workflow import (
-    create_document_workflow,
-    invoke_document_workflow,
-    workflow_state_to_response,
-)
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
+from docflow_agent.workflow.process import build_workflow, invoke_workflow, state_to_response
 from support.document_workflow import build_document_workflow_kwargs
 
 
 def test_prompt_routes_to_document_process_and_creates_artifact_refs() -> None:
     repository = InMemoryArtifactRepository()
-    workflow = create_document_workflow(
-        artifact_repository=repository,
-        **build_document_workflow_kwargs(artifact_repository=repository),
-    )
+    workflow = build_workflow(**build_document_workflow_kwargs(artifact_repository=repository))
 
     state = workflow.invoke({"user_input": "엑셀 문서를 분석해줘"})
 
@@ -34,12 +27,9 @@ def test_prompt_routes_to_document_process_and_creates_artifact_refs() -> None:
 
 def test_workflow_facade_accepts_human_decisions_and_serializes_state() -> None:
     repository = InMemoryArtifactRepository()
-    workflow = create_document_workflow(
-        artifact_repository=repository,
-        **build_document_workflow_kwargs(artifact_repository=repository),
-    )
+    workflow = build_workflow(**build_document_workflow_kwargs(artifact_repository=repository))
 
-    state = invoke_document_workflow(
+    state = invoke_workflow(
         user_input="엑셀에서 미정산 건을 찾아 메일로 보내줘",
         human_decisions=[
             {
@@ -54,7 +44,7 @@ def test_workflow_facade_accepts_human_decisions_and_serializes_state() -> None:
         workflow=workflow,
     )
 
-    response = workflow_state_to_response(state)
+    response = state_to_response(state)
 
     assert response["flow"] == "document_to_mail"
     assert response["current_step"] == "send_mail"
@@ -84,8 +74,7 @@ def test_prompt_with_pdf_path_routes_through_pdf_parsing(tmp_path: Path) -> None
             ],
         )
 
-    workflow = create_document_workflow(
-        artifact_repository=repository,
+    workflow = build_workflow(
         **build_document_workflow_kwargs(
             artifact_repository=repository,
             pdf_client=OpenDataLoaderPdfClient(),
