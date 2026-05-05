@@ -1,6 +1,6 @@
 from docflow_agent.core.rules.invoice import apply_invoice_rule
-from docflow_agent.types.bundle import InvoiceBundle
-from docflow_agent.types.unit import ExcelSheetUnit
+from docflow_agent.types.value.bundle import InvoiceBundle
+from docflow_agent.types.value.unit import ExcelSheetUnit
 
 
 def test_apply_invoice_rule_marks_invoice_bundle() -> None:

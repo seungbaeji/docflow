@@ -1,6 +1,6 @@
 from docflow_agent.core.combine.invoice import combine_invoice_units
-from docflow_agent.types.source import SourceRef, SpreadsheetSource
-from docflow_agent.types.unit import ExcelSheetUnit
+from docflow_agent.types.value.source import SourceRef, SpreadsheetSource
+from docflow_agent.types.value.unit import ExcelSheetUnit
 
 
 def test_combine_invoice_units_creates_invoice_bundle() -> None:

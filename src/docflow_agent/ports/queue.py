@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from docflow_agent.types.external import QueueMessage
+from docflow_agent.types.boundary.external import QueueMessage
 
 
 class WorkflowQueuePort(Protocol):
@@ -12,4 +12,3 @@ class WorkflowQueuePort(Protocol):
 
     def ack(self, message_id: str) -> None:
         ...
-

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from docflow_agent.types.unit import ExcelSheetUnit
+from docflow_agent.types.value.unit import ExcelSheetUnit
 
 
 @dataclass(frozen=True)

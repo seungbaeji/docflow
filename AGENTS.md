@@ -81,9 +81,17 @@ Rules:
 
 ### types
 
-- dataclasses only
+- `types/value`: `frozen dataclass` value object only
+- `types/boundary`: `pydantic` boundary DTO and external payload shape
 - explicit real data shapes
 - acyclic imports only
+
+Rules:
+
+- `core` uses `types/value` only
+- `types/value` must not import `types/boundary`
+- treat all external input as untrusted
+- validate or normalize external input at inbound/outbound boundaries before converting to value objects
 
 ## Data Rules
 

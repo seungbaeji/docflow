@@ -1,11 +1,11 @@
-from docflow_agent.types.edit import (
+from docflow_agent.types.value.edit import (
     CellValueEditIntent,
     EditExecutionResult,
     InsertSheetEditIntent,
     RecalculateWorkbookEditIntent,
     SaveDocumentEditIntent,
 )
-from docflow_agent.types.source import SpreadsheetSource
+from docflow_agent.types.value.source import SpreadsheetSource
 
 
 def apply_spreadsheet_edit_intents(

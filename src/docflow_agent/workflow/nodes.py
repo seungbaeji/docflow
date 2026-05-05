@@ -5,7 +5,7 @@ from typing import Literal, Protocol
 
 from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.ports.rdbms import ProcessingRecordPort
-from docflow_agent.types.external import ProcessingRecord, QueueMessage
+from docflow_agent.types.boundary.external import ProcessingRecord, QueueMessage
 from docflow_agent.usecases.document_workflow import UsecaseOutcome
 from docflow_agent.workflow.routes import get_human_decision, route_flow
 from docflow_agent.workflow.state import ArtifactKind, ArtifactRef, WorkflowState
@@ -277,4 +277,3 @@ def unknown_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> Wo
     state["error"] = outcome.message
     state["current_step"] = "unknown"
     return state
-

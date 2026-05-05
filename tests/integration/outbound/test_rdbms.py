@@ -2,7 +2,7 @@ import pytest
 
 from docflow_agent.errors import DatabaseIntegrationError
 from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
-from docflow_agent.types.external import ProcessingRecord
+from docflow_agent.types.boundary.external import ProcessingRecord
 
 
 def test_save_and_load_processing_record() -> None:
@@ -46,4 +46,3 @@ def test_find_processing_records_filters_by_status() -> None:
 def test_load_processing_record_raises_for_missing_record() -> None:
     with pytest.raises(DatabaseIntegrationError, match="run-missing"):
         InMemoryProcessingRecordStore().load_processing_record("run-missing")
-

@@ -10,8 +10,8 @@ from docflow_agent.core.rules.invoice import apply_invoice_rule
 from docflow_agent.core.source_kind.detect import detect_source_kind
 from docflow_agent.errors import UnsupportedCategoryError, UnsupportedSourceKindError
 from docflow_agent.outbound.files import load_spreadsheet_source
-from docflow_agent.types.results import ProcessResult
-from docflow_agent.types.source import SourceRef
+from docflow_agent.types.value.results import ProcessResult
+from docflow_agent.types.value.source import SourceRef
 
 
 def process_source(source_ref: SourceRef) -> ProcessResult:

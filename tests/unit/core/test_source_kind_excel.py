@@ -1,5 +1,5 @@
 from docflow_agent.core.source_kind.detect import detect_source_kind
-from docflow_agent.types.source import SourceRef, SpreadsheetSource
+from docflow_agent.types.value.source import SourceRef, SpreadsheetSource
 
 
 def test_detect_excel_source_kind() -> None:

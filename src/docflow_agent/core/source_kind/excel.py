@@ -1,4 +1,4 @@
-from docflow_agent.types.source import SpreadsheetSource
+from docflow_agent.types.value.source import SpreadsheetSource
 
 
 def is_excel_source(source: SpreadsheetSource) -> bool:

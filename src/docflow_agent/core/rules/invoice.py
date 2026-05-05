@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from docflow_agent.types.bundle import InvoiceBundle
+from docflow_agent.types.value.bundle import InvoiceBundle
 
 
 def apply_invoice_rule(bundle: InvoiceBundle) -> InvoiceBundle:

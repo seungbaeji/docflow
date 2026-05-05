@@ -1,5 +1,5 @@
 from docflow_agent.outbound.external.ocr import OcrClient, extract_text_pages
-from docflow_agent.types.common import FileInfo
+from docflow_agent.types.boundary.common import FileInfo
 
 
 def test_extract_text_pages_returns_stub_ocr_result() -> None:

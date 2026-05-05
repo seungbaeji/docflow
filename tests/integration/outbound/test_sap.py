@@ -6,7 +6,7 @@ from docflow_agent.outbound.external.sap import (
     fetch_accounting_records,
     save_accounting_records,
 )
-from docflow_agent.types.external import SapRecord
+from docflow_agent.types.boundary.external import SapRecord
 
 
 def test_save_and_fetch_accounting_records() -> None:

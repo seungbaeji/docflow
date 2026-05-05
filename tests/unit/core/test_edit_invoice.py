@@ -1,6 +1,6 @@
 from docflow_agent.core.edit.invoice import build_invoice_edit_intents
-from docflow_agent.types.bundle import InvoiceBundle
-from docflow_agent.types.unit import ExcelSheetUnit
+from docflow_agent.types.value.bundle import InvoiceBundle
+from docflow_agent.types.value.unit import ExcelSheetUnit
 
 
 def test_build_invoice_edit_intents_returns_summary_update() -> None:

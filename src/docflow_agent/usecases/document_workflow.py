@@ -6,7 +6,7 @@ from docflow_agent.ports.llm import DocumentLlmPort
 from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.ports.rdbms import ProcessingRecordPort
 from docflow_agent.ports.vector_store import VectorStorePort
-from docflow_agent.types.external import ProcessingRecord, VectorStoreDocument
+from docflow_agent.types.boundary.external import ProcessingRecord, VectorStoreDocument
 
 
 @dataclass(frozen=True)

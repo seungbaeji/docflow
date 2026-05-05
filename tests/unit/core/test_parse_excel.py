@@ -1,5 +1,5 @@
 from docflow_agent.core.parse.excel import parse_excel_units
-from docflow_agent.types.source import SourceRef, SpreadsheetSource
+from docflow_agent.types.value.source import SourceRef, SpreadsheetSource
 
 
 def test_parse_excel_units_returns_sheet_units() -> None:

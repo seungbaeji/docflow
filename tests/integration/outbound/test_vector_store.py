@@ -1,5 +1,5 @@
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
-from docflow_agent.types.external import VectorStoreDocument
+from docflow_agent.types.boundary.external import VectorStoreDocument
 
 
 def test_vector_store_returns_ranked_hits() -> None:
@@ -35,4 +35,3 @@ def test_vector_store_can_delete_documents() -> None:
     store.delete_document("doc-001")
 
     assert store.search_similar("invoice") == []
-

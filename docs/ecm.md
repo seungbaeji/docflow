@@ -51,7 +51,7 @@ ECM은 문서 수정의 실행 결과를 다시 저장하는 용도로도 사용
 
 ```python
 from docflow_agent.outbound.external.ecm import EcmClient, search_documents, upload_document
-from docflow_agent.types.common import EcmAuth, EcmSearchQuery, FileInfo
+from docflow_agent.types.boundary.common import EcmAuth, EcmSearchQuery, FileInfo
 
 client = EcmClient(
     base_url="https://ecm.example.com",

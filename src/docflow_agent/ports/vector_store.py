@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from docflow_agent.types.external import VectorSearchHit, VectorStoreDocument
+from docflow_agent.types.boundary.external import VectorSearchHit, VectorStoreDocument
 
 
 class VectorStorePort(Protocol):
@@ -17,4 +17,3 @@ class VectorStorePort(Protocol):
 
     def delete_document(self, document_id: str) -> None:
         ...
-

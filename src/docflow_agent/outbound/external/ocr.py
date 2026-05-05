@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from docflow_agent.errors import OcrIntegrationError
-from docflow_agent.types.common import FileInfo
-from docflow_agent.types.external import OcrPage
+from docflow_agent.types.boundary.common import FileInfo
+from docflow_agent.types.boundary.external import OcrPage
 
 
 @dataclass(frozen=True)
@@ -24,4 +24,3 @@ def extract_text_pages(client: OcrClient, file_info: FileInfo) -> list[OcrPage]:
             metadata={"content_type": file_info.content_type},
         )
     ]
-

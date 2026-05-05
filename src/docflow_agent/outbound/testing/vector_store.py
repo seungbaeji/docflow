@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from docflow_agent.ports.vector_store import VectorStorePort
-from docflow_agent.types.external import VectorSearchHit, VectorStoreDocument
+from docflow_agent.types.boundary.external import VectorSearchHit, VectorStoreDocument
 
 
 def _tokenize(text: str) -> set[str]:
@@ -43,4 +43,3 @@ class InMemoryVectorStore(VectorStorePort):
 
     def delete_document(self, document_id: str) -> None:
         self.documents.pop(document_id, None)
-

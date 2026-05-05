@@ -1,5 +1,5 @@
 from docflow_agent.core.category.invoice import categorize_excel_units
-from docflow_agent.types.unit import ExcelSheetUnit
+from docflow_agent.types.value.unit import ExcelSheetUnit
 
 
 def test_categorize_excel_units_detects_invoice() -> None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from docflow_agent.errors import SapIntegrationError
-from docflow_agent.types.external import SapRecord
+from docflow_agent.types.boundary.external import SapRecord
 
 
 @dataclass
@@ -24,4 +24,3 @@ def save_accounting_records(
     records: list[SapRecord],
 ) -> None:
     client.records_by_document[document_id] = list(records)
-

@@ -1,4 +1,4 @@
-from docflow_agent.types.source import SourceRef, SpreadsheetSource
+from docflow_agent.types.value.source import SourceRef, SpreadsheetSource
 
 
 def load_spreadsheet_source(source_ref: SourceRef) -> SpreadsheetSource:

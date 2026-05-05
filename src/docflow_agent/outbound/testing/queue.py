@@ -2,7 +2,7 @@ from collections import deque
 from dataclasses import dataclass, field
 
 from docflow_agent.ports.queue import WorkflowQueuePort
-from docflow_agent.types.external import QueueMessage
+from docflow_agent.types.boundary.external import QueueMessage
 
 
 @dataclass

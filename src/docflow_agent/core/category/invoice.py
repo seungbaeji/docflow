@@ -1,4 +1,4 @@
-from docflow_agent.types.unit import ExcelSheetUnit
+from docflow_agent.types.value.unit import ExcelSheetUnit
 
 
 def categorize_excel_units(units: list[ExcelSheetUnit]) -> str:

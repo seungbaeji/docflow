@@ -1,4 +1,4 @@
-from docflow_agent.types.bundle import InvoiceBundle
+from docflow_agent.types.value.bundle import InvoiceBundle
 
 
 def analyze_invoice_bundle(bundle: InvoiceBundle) -> dict[str, object]:

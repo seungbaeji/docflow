@@ -3,7 +3,7 @@ import pytest
 from typing import cast
 
 from docflow_agent.errors import UnsupportedCategoryError
-from docflow_agent.types.source import SourceRef, SpreadsheetSource
+from docflow_agent.types.value.source import SourceRef, SpreadsheetSource
 from docflow_agent.usecases.process_source import process_source
 
 

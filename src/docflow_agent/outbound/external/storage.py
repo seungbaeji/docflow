@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from docflow_agent.errors import StorageIntegrationError
-from docflow_agent.types.external import StoredObject
+from docflow_agent.types.boundary.external import StoredObject
 
 
 @dataclass(frozen=True)
@@ -35,4 +35,3 @@ def load_bytes(client: StorageClient, relative_path: str) -> bytes:
     if not path.is_file():
         raise StorageIntegrationError(str(path))
     return path.read_bytes()
-

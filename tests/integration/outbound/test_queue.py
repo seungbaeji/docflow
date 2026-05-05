@@ -1,5 +1,5 @@
 from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
-from docflow_agent.types.external import QueueMessage
+from docflow_agent.types.boundary.external import QueueMessage
 
 
 def test_workflow_queue_enqueues_and_dequeues_messages() -> None:
@@ -23,4 +23,3 @@ def test_workflow_queue_tracks_acknowledged_messages() -> None:
     queue.ack("msg-001")
 
     assert "msg-001" in queue.acknowledged_ids
-

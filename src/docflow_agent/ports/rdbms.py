@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from docflow_agent.types.external import ProcessingRecord
+from docflow_agent.types.boundary.external import ProcessingRecord
 
 
 class ProcessingRecordPort(Protocol):
@@ -16,4 +16,3 @@ class ProcessingRecordPort(Protocol):
         status: str | None = None,
     ) -> list[ProcessingRecord]:
         ...
-

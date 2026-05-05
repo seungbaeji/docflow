@@ -18,7 +18,7 @@ from docflow_agent.outbound.external.ecm import (
     verify_hmac_signature,
 )
 from docflow_agent.errors import EcmResponseError
-from docflow_agent.types.common import EcmAuth, EcmSearchQuery, FileInfo
+from docflow_agent.types.boundary.common import EcmAuth, EcmSearchQuery, FileInfo
 
 
 class FakeResponse:

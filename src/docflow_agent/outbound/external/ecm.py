@@ -4,14 +4,18 @@ import hmac
 import json
 from email.message import Message
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Any, Protocol, TypeVar, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
+from pydantic import ValidationError
+
 from docflow_agent.errors import EcmRequestError, EcmResponseError
-from docflow_agent.types.common import EcmAuth, EcmSearchQuery, FileInfo
-from docflow_agent.types.external import EcmDocument
+from docflow_agent.types.boundary.common import EcmAuth, EcmSearchQuery, FileInfo
+from docflow_agent.types.boundary.external import EcmDocument, EcmSearchResponse, EcmUploadResponse
+
+BoundaryModelT = TypeVar("BoundaryModelT")
 
 
 class EcmClient:
@@ -65,9 +69,8 @@ def search_documents(client: EcmClient, query: EcmSearchQuery) -> list[EcmDocume
         path=client.search_path,
         payload=payload,
     )
-    raw_hits = response.get("items", [])
-    hits = raw_hits if isinstance(raw_hits, list) else []
-    return [_parse_ecm_document(item) for item in hits if isinstance(item, dict)]
+    parsed = _validate_boundary_model(EcmSearchResponse, response, path=client.search_path)
+    return parsed.items
 
 
 def download_document(client: EcmClient, document_id: str, destination_dir: str) -> FileInfo:
@@ -106,19 +109,16 @@ def upload_document(
         extra_headers=headers,
         expect_json=False,
     )
-    raw_document_id = response.get("document_id")
-    if not isinstance(raw_document_id, str) or not raw_document_id:
-        raise EcmResponseError(
-            path=client.upload_path,
-            reason="Upload response did not include a document_id",
-        )
-    return _parse_ecm_document(
+    parsed = _validate_boundary_model(EcmUploadResponse, response, path=client.upload_path)
+    return _validate_boundary_model(
+        EcmDocument,
         {
-            "document_id": raw_document_id,
-            "name": response.get("name", file_info.name),
-            "content_type": response.get("content_type", file_info.content_type),
-            "metadata": response.get("metadata", metadata or {}),
-        }
+            "document_id": parsed.document_id,
+            "name": parsed.name or file_info.name,
+            "content_type": parsed.content_type or file_info.content_type,
+            "metadata": parsed.metadata or metadata or {},
+        },
+        path=client.upload_path,
     )
 
 
@@ -223,21 +223,16 @@ def _build_headers(
     return headers
 
 
-def _parse_ecm_document(payload: dict[str, object]) -> EcmDocument:
-    document_id = payload.get("document_id")
-    if not isinstance(document_id, str) or not document_id:
-        raise EcmResponseError(path="/documents", reason="document_id is required")
-
-    name = payload.get("name")
-    content_type = payload.get("content_type")
-    metadata = payload.get("metadata")
-
-    return EcmDocument(
-        document_id=document_id,
-        name=name if isinstance(name, str) else document_id,
-        content_type=content_type if isinstance(content_type, str) else "application/octet-stream",
-        metadata=metadata if isinstance(metadata, dict) else {},
-    )
+def _validate_boundary_model(
+    model_type: type[BoundaryModelT],
+    payload: Any,
+    *,
+    path: str,
+) -> BoundaryModelT:
+    try:
+        return cast(BoundaryModelT, model_type.model_validate(payload))  # type: ignore[attr-defined]
+    except ValidationError as exc:
+        raise EcmResponseError(path=path, reason=str(exc)) from exc
 
 
 def _extract_filename(headers: Message) -> str | None:
@@ -255,4 +250,3 @@ def _safe_filename(file_name: str | None) -> str | None:
     if not file_name:
         return None
     return Path(file_name).name or None
-

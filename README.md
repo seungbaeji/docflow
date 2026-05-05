@@ -20,7 +20,9 @@ usecases -> outbound
   - `outbound/external`: ECM, SAP, mail, OCR, storage, LLM 같은 외부 시스템 연동
   - `outbound/testing`: in-memory repository, rdbms, vector store, queue, llm 같은 테스트/로컬 개발용 어댑터
 - `ports`: repository, llm, rdbms, vector store, queue 같은 usecase/workflow 경계
-- `types`: source, unit, bundle, external record, edit intent, result 같은 실데이터 구조
+- `types`: `value`와 `boundary`로 나뉜 실데이터 구조
+  - `types/value`: 내부에서 신뢰하고 쓰는 `frozen dataclass` value object
+  - `types/boundary`: 외부 입력/출력과 외부 시스템 payload를 담는 `pydantic` boundary DTO
 
 핵심 개념도 바뀌었습니다.
 
@@ -31,7 +33,9 @@ usecases -> outbound
 - `edit intent`: core가 결정한 수정 명세. 실제 파일/애플리케이션 수정은 outbound가 수행
 - `workflow`: artifact ref와 human decision을 들고 가며 전체 흐름을 이어가는 재개 가능한 실행 단위
 
-core는 구조화된 타입만 다루고 outbound를 전혀 모릅니다. outbound는 외부 응답, 파일, bytes, API 호출뿐 아니라 문서 수정 실행과 애플리케이션 자동화까지 책임집니다.
+core는 구조화된 value object만 다루고 outbound를 전혀 모릅니다. outbound는 외부 응답, 파일, bytes, API 호출뿐 아니라 문서 수정 실행과 애플리케이션 자동화까지 책임집니다.
+
+`types/value`는 내부 value object 전용이고 모두 `frozen dataclass`를 기본으로 합니다. `types/boundary`는 inbound/outbound 경계에서 오가는 `pydantic` DTO를 담고, 외부 입력은 신뢰하지 않는다는 전제로 검증과 정규화를 먼저 수행한 뒤 workflow, usecase, core에는 작은 값 객체만 넘기는 방향을 따릅니다.
 
 ## Workflow
 
@@ -74,7 +78,8 @@ src/docflow_agent/
   outbound/
     document_automation.py
   types/
-    edit.py
+    value/
+    boundary/
 ```
 
 현재 구현된 최소 흐름은 Excel source를 읽어 sheet unit으로 파싱하고, invoice category를 식별한 뒤 invoice bundle로 결합하고 accounting rule을 검증하는 흐름입니다.

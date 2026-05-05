@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from docflow_agent.errors import DatabaseIntegrationError
 from docflow_agent.ports.rdbms import ProcessingRecordPort
-from docflow_agent.types.external import ProcessingRecord
+from docflow_agent.types.boundary.external import ProcessingRecord
 
 
 @dataclass
@@ -27,4 +27,3 @@ class InMemoryProcessingRecordStore(ProcessingRecordPort):
         if status is None:
             return records
         return [record for record in records if record.status == status]
-

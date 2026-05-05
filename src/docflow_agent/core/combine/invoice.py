@@ -1,6 +1,6 @@
-from docflow_agent.types.bundle import InvoiceBundle
-from docflow_agent.types.source import SpreadsheetSource
-from docflow_agent.types.unit import ExcelSheetUnit
+from docflow_agent.types.value.bundle import InvoiceBundle
+from docflow_agent.types.value.source import SpreadsheetSource
+from docflow_agent.types.value.unit import ExcelSheetUnit
 
 
 def combine_invoice_units(

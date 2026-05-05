@@ -1,11 +1,11 @@
 from docflow_agent.outbound.document_automation import apply_spreadsheet_edit_intents
-from docflow_agent.types.edit import (
+from docflow_agent.types.value.edit import (
     CellValueEditIntent,
     InsertSheetEditIntent,
     RecalculateWorkbookEditIntent,
     SaveDocumentEditIntent,
 )
-from docflow_agent.types.source import SourceRef, SpreadsheetSource
+from docflow_agent.types.value.source import SourceRef, SpreadsheetSource
 
 
 def test_apply_spreadsheet_edit_intents_uses_file_strategy_by_default() -> None:
