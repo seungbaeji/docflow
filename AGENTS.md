@@ -55,14 +55,12 @@ Rules:
 
 - FastAPI, Streamlit, CLI entrypoints
 - call usecases only
-
 - no business logic
 
 ### usecases
 
 - orchestrate core + outbound
 - may invoke workflow when stateful orchestration is needed
-
 - no business rules
 - no parsing logic
 - no direct file/automation details
