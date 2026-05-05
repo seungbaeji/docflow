@@ -1,3 +1,10 @@
+"""LangGraph definition for process-style document workflows.
+
+This graph drives the main `document_process` and `document_to_mail` flows.
+It knows node order and branching, but the actual side effects are delegated
+to injected callables.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -41,6 +48,12 @@ def build_workflow(
     handle_unknown: Callable[[str], UsecaseOutcome],
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
+    """Build the process workflow graph from injected node callables.
+
+    The graph owns step order and branching only. All document loading,
+    parsing, persistence, mail composition, and approval side effects are
+    delegated to the injected callables.
+    """
     active_workflow_runtime = workflow_runtime or WorkflowRuntime()
     graph = StateGraph(WorkflowState)
     graph.add_node("select_flow", select_flow_node)
@@ -114,6 +127,11 @@ def invoke_workflow(
     workflow: Any,
     human_decisions: list[HumanDecision] | None = None,
 ) -> WorkflowState:
+    """Invoke a compiled process workflow with prompt and optional decisions.
+
+    The returned value is raw workflow state so higher layers can decide how
+    to translate it into API, CLI, or test-facing outputs.
+    """
     initial_state: WorkflowState = {"user_input": user_input}
     if human_decisions:
         initial_state["human_decisions"] = human_decisions
@@ -121,6 +139,11 @@ def invoke_workflow(
 
 
 def state_to_response(state: WorkflowState) -> dict[str, object]:
+    """Translate internal workflow state into the public `/process` shape.
+
+    This keeps state-specific fields local to workflow while exposing a stable
+    response contract to API and CLI entrypoints.
+    """
     response: dict[str, object] = {
         "flow": state.get("flow", "unknown"),
         "current_step": state.get("current_step", ""),

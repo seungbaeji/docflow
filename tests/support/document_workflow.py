@@ -59,6 +59,83 @@ def build_document_workflow_functions(
     pdf_client: OpenDataLoaderPdfClient | None = None,
     pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument] = extract_pdf_document,
 ) -> DocumentWorkflowFunctionSet:
+    def ensure_prepared_source(source_ref_id: str) -> None:
+        parsed_unit_ref_ids = artifact_repository.find(
+            "unit",
+            {"source_ref_id": source_ref_id, "stage": "parsed"},
+        )
+        if not parsed_unit_ref_ids:
+            parsed_unit_ref_ids = document_parse.parse_units(
+                artifact_repository,
+                source_ref_id=source_ref_id,
+                pdf_client=pdf_client,
+                pdf_parser=pdf_parser,
+            )
+
+        categorized_unit_ref_ids = artifact_repository.find(
+            "unit",
+            {"source_ref_id": source_ref_id, "stage": "categorized"},
+        )
+        if not categorized_unit_ref_ids:
+            categorized_unit_ref_ids = document_parse.categorize_units(
+                artifact_repository,
+                unit_ref_ids=parsed_unit_ref_ids,
+            )
+
+        bundle_ref_ids = artifact_repository.find(
+            "bundle",
+            {"source_ref_id": source_ref_id, "stage": "combined"},
+        )
+        if not bundle_ref_ids:
+            bundle_ref_ids = [
+                document_parse.combine_bundle(
+                    artifact_repository,
+                    unit_ref_ids=categorized_unit_ref_ids,
+                )
+            ]
+
+        analysis_ref_ids = artifact_repository.find(
+            "analysis",
+            {"source_ref_id": source_ref_id, "stage": "analyzed"},
+        )
+        if not analysis_ref_ids:
+            document_mail.analyze(
+                artifact_repository,
+                bundle_ref_id=bundle_ref_ids[-1],
+                workflow_run_store=workflow_run_store,
+                vector_store=vector_store,
+            )
+
+    def build_prepared_payload(source_ref_id: str) -> DocumentPayload:
+        ensure_prepared_source(source_ref_id)
+        return document_chat.build_payload(
+            artifact_repository,
+            source_ref_id=source_ref_id,
+        )
+
+    def build_prepared_context(source_ref_id: str) -> str:
+        ensure_prepared_source(source_ref_id)
+        return document_chat.build_context_by_ref(
+            artifact_repository,
+            source_ref_id=source_ref_id,
+        )
+
+    def summarize_prepared_ref(source_ref_id: str) -> str:
+        ensure_prepared_source(source_ref_id)
+        return document_chat.summarize_ref(
+            artifact_repository,
+            source_ref_id=source_ref_id,
+        )
+
+    def answer_question_about_prepared_ref(source_ref_id: str, question: str) -> str:
+        ensure_prepared_source(source_ref_id)
+        return document_chat.answer_question_about_ref(
+            artifact_repository,
+            source_ref_id=source_ref_id,
+            question=question,
+            llm_gateway=llm_gateway,
+        )
+
     return {
         "stage_upload": lambda file_name, stored_path, content_type, size_bytes: document_source.stage_upload(
             artifact_repository,
@@ -119,32 +196,10 @@ def build_document_workflow_functions(
             user_input=user_input,
             workflow_run_store=workflow_run_store,
         ),
-        "build_payload": lambda source_ref_id: document_chat.build_payload(
-            artifact_repository,
-            source_ref_id=source_ref_id,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
-        ),
-        "build_context": lambda source_ref_id: document_chat.build_context_by_ref(
-            artifact_repository,
-            source_ref_id=source_ref_id,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
-        ),
-        "summarize_ref": lambda source_ref_id: document_chat.summarize_ref(
-            artifact_repository,
-            source_ref_id=source_ref_id,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
-        ),
-        "answer_question_about_ref": lambda source_ref_id, question: document_chat.answer_question_about_ref(
-            artifact_repository,
-            source_ref_id=source_ref_id,
-            question=question,
-            llm_gateway=llm_gateway,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
-        ),
+        "build_payload": build_prepared_payload,
+        "build_context": build_prepared_context,
+        "summarize_ref": summarize_prepared_ref,
+        "answer_question_about_ref": answer_question_about_prepared_ref,
     }
 
 

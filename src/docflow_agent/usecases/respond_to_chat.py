@@ -1,3 +1,10 @@
+"""Usecase facade for chat requests.
+
+This module decides whether a chat request should stay on the general chat
+path or switch to the document-aware agent path. It keeps `inbound` thin by
+hiding workflow preparation and fallback behavior behind one function.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -38,6 +45,18 @@ def respond_to_chat(
     session_id: str,
     message: str,
 ) -> str:
+    """Respond to a chat request through the appropriate chat path.
+
+    Behavior:
+    - if the current session has an uploaded or prepared document and the
+      message looks document-related, route through document prep + agent tools
+    - if the document agent fails, fall back to deterministic summary or
+      prepared question answering
+    - otherwise, use the normal multi-turn chat path
+
+    The caller receives only the final assistant message, not workflow or tool
+    internals.
+    """
     current_source_ref = session_document_store.get_current_source_ref(session_id)
     current_upload_id = session_document_store.get_current_upload_id(session_id)
 
@@ -69,8 +88,6 @@ def respond_to_chat(
                 source_ref_id=tool_context.source_ref_id,
                 question=message,
                 llm_gateway=llm_gateway,
-                pdf_client=pdf_client,
-                pdf_parser=pdf_parser,
             )
 
     document_context = None
@@ -78,8 +95,6 @@ def respond_to_chat(
         document_context = build_context_by_ref(
             artifact_repository=artifact_repository,
             source_ref_id=current_source_ref,
-            pdf_client=pdf_client,
-            pdf_parser=pdf_parser,
         )
     return respond_in_chat(
         message=message,
@@ -92,11 +107,13 @@ def respond_to_chat(
 
 
 def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
+    """Return whether the normalized text contains any of the given keywords."""
     lowered = text.casefold()
     return any(keyword in lowered for keyword in keywords)
 
 
 def _requires_document_processing(message: str) -> bool:
+    """Heuristically detect prompts asking to process or analyze a document."""
     return _contains_any(
         message,
         (
@@ -115,6 +132,7 @@ def _requires_document_processing(message: str) -> bool:
 
 
 def _requires_document_question(message: str) -> bool:
+    """Heuristically detect prompts asking questions about document contents."""
     return _contains_any(
         message,
         (
@@ -140,4 +158,5 @@ def _requires_document_question(message: str) -> bool:
 
 
 def _requires_document_agent(message: str) -> bool:
+    """Return whether the message should take the document-aware chat path."""
     return _requires_document_processing(message) or _requires_document_question(message)

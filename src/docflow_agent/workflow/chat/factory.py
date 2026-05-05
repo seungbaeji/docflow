@@ -1,3 +1,10 @@
+"""Workflow assembly helpers for document-aware chat.
+
+This module hides the wiring needed to prepare document context for the agent
+runtime. It builds the prep workflow, loads prepared payloads, and exposes
+small helpers that higher layers can call without knowing the internal graph.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -32,6 +39,12 @@ def create_prep_workflow(
     pdf_client: OpenDataLoaderPdfClient | None,
     pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> object:
+    """Build the prep workflow used before document-aware chat turns.
+
+    The prep workflow resolves the current upload or source, ensures parsing
+    and analysis artifacts exist, and produces the explicit context later
+    consumed by agent tools.
+    """
     return build_workflow(
         artifact_repository=artifact_repository,
         session_document_store=session_document_store,
@@ -73,6 +86,12 @@ def prepare_context(
     session_id: str,
     message: str,
 ) -> DocumentAgentToolContext:
+    """Run prep workflow and materialize explicit tool context for chat.
+
+    The returned context contains only prepared, immutable data needed by the
+    agent runtime. Session lookup and artifact creation happen before this
+    function returns.
+    """
     prep_workflow = create_prep_workflow(
         artifact_repository=artifact_repository,
         session_document_store=session_document_store,
@@ -90,14 +109,10 @@ def prepare_context(
     payload = build_payload(
         artifact_repository=artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
     summary = summarize_ref(
         artifact_repository=artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
     return DocumentAgentToolContext(
         source_ref_id=source_ref_id,
@@ -112,6 +127,11 @@ def build_runtime(
     runtime_store: BaseStore | None,
     tool_context: DocumentAgentToolContext,
 ) -> AgentRuntime:
+    """Create the document-aware agent runtime for one chat turn.
+
+    This binds the prepared tool context, the internal document tools, the
+    runtime store, and the agent system prompt into a runnable agent loop.
+    """
     return AgentRuntime(
         llm_gateway=llm_gateway,
         tools=DOCUMENT_AGENT_TOOLS,
@@ -125,14 +145,15 @@ def build_payload(
     *,
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> DocumentPayload:
+    """Load the prepared document payload for a selected source artifact.
+
+    This helper is intentionally read-only. It assumes prep workflow has
+    already guaranteed that required parse and analysis artifacts exist.
+    """
     return document_chat.build_payload(
         artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
 
 
@@ -140,14 +161,15 @@ def summarize_ref(
     *,
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> str:
+    """Render a deterministic summary for a prepared source artifact.
+
+    This summary is used both by the agent path and by deterministic fallback
+    behavior when the tool-calling loop cannot complete successfully.
+    """
     return document_chat.summarize_ref(
         artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
 
 
@@ -157,16 +179,17 @@ def answer_question_about_ref(
     source_ref_id: str,
     question: str,
     llm_gateway: DocumentLlmPort | None,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> str:
+    """Answer a document question using already-prepared document artifacts.
+
+    The source must already have been selected and prepared by workflow. This
+    helper exists for fallback and direct question-answering paths.
+    """
     return document_chat.answer_question_about_ref(
         artifact_repository,
         source_ref_id=source_ref_id,
         question=question,
         llm_gateway=llm_gateway,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )
 
 
@@ -174,12 +197,13 @@ def build_context_by_ref(
     *,
     artifact_repository: ArtifactRepository,
     source_ref_id: str,
-    pdf_client: OpenDataLoaderPdfClient | None,
-    pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
 ) -> str:
+    """Build compact chat context text from a prepared source artifact.
+
+    This context is appended to ordinary chat turns when the session already
+    points at a prepared document but the message does not need the agent path.
+    """
     return document_chat.build_context_by_ref(
         artifact_repository,
         source_ref_id=source_ref_id,
-        pdf_client=pdf_client,
-        pdf_parser=pdf_parser,
     )

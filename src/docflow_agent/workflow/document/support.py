@@ -1,3 +1,10 @@
+"""Low-level helpers shared by workflow document modules.
+
+This module is the bottom layer inside `workflow.document`. Other
+`workflow.document.*` modules may depend on this file, but should not depend
+on each other directly.
+"""
+
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -73,6 +80,17 @@ def load_parsed_unit_payload(artifact_repository: ArtifactRepository, unit_ref_i
     )
 
 
+def load_parsed_unit_ref_ids(
+    artifact_repository: ArtifactRepository,
+    source_ref_id: str,
+) -> list[str]:
+    return find_artifact_refs(
+        artifact_repository,
+        kind="unit",
+        filters={"source_ref_id": source_ref_id, "stage": "parsed"},
+    )
+
+
 def load_categorized_unit_payload(
     artifact_repository: ArtifactRepository,
     unit_ref_id: str,
@@ -145,6 +163,21 @@ def load_latest_parsed_document(
         markdown=str(value["markdown"]) if value.get("markdown") is not None else None,
         text=str(value["text"]) if value.get("text") is not None else None,
     )
+
+
+def load_latest_analysis_value(
+    artifact_repository: ArtifactRepository,
+    source_ref_id: str,
+) -> dict[str, object] | None:
+    analyzed_refs = find_artifact_refs(
+        artifact_repository,
+        kind="analysis",
+        filters={"source_ref_id": source_ref_id, "stage": "analyzed"},
+    )
+    if not analyzed_refs:
+        return None
+    value = artifact_repository.load("analysis", analyzed_refs[-1])
+    return value if isinstance(value, dict) else None
 
 
 def save_workflow_run(

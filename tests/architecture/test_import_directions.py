@@ -86,3 +86,11 @@ def test_workflow_same_level_direction_rules() -> None:
             assert not any(module.startswith("docflow_agent.usecases.process_request") for module in imported), path
             assert not any(module.startswith("docflow_agent.usecases.respond_to_chat") for module in imported), path
             assert not any(module.startswith("docflow_agent.usecases.stage_upload") for module in imported), path
+            if path.name != "support.py":
+                document_internal_imports = [
+                    module
+                    for module in imported
+                    if module.startswith("docflow_agent.workflow.document")
+                    and module != "docflow_agent.workflow.document.support"
+                ]
+                assert not document_internal_imports, path

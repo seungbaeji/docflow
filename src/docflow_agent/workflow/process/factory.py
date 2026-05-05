@@ -1,3 +1,10 @@
+"""Workflow assembly helpers for process-style document requests.
+
+These helpers bind explicit dependencies to the process workflow graph.
+They are part of the workflow layer, but they consume only already-assembled
+dependencies and never reach back into `bootstrap`.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -23,6 +30,11 @@ def build_runtime(
     workflow_run_store: WorkflowRunStore,
     workflow_queue: WorkflowQueuePort,
 ) -> WorkflowRuntime:
+    """Create the runtime helper shared by process workflow nodes.
+
+    The runtime bundles cross-cutting orchestration services such as workflow
+    run recording and queue publication. It does not contain business logic.
+    """
     return WorkflowRuntime(
         workflow_run_store=workflow_run_store,
         workflow_queue=workflow_queue,
@@ -40,6 +52,12 @@ def create_workflow(
     pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
+    """Build the compiled process workflow from concrete orchestration deps.
+
+    This function is the composition point for the main process graph. It
+    binds repository-backed workflow helpers to the graph's node callables and
+    returns a compiled LangGraph workflow ready to invoke.
+    """
     active_runtime = workflow_runtime or build_runtime(
         workflow_run_store=workflow_run_store,
         workflow_queue=workflow_queue,
