@@ -9,7 +9,7 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.testing.document_workflow import build_document_workflow_functions
+from support.document_workflow import build_document_workflow_functions
 
 
 def test_analyze_persists_record_and_vector_document() -> None:

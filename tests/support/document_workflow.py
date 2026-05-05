@@ -12,10 +12,10 @@ from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument
 from docflow_agent.types.value.document import DocumentPayload
 from docflow_agent.types.value.results import UsecaseOutcome
-from docflow_agent.workflow.document import chat as document_chat
-from docflow_agent.workflow.document import mail as document_mail
-from docflow_agent.workflow.document import parse as document_parse
-from docflow_agent.workflow.document import source as document_source
+import docflow_agent.workflow.document.chat as document_chat
+import docflow_agent.workflow.document.mail as document_mail
+import docflow_agent.workflow.document.parse as document_parse
+import docflow_agent.workflow.document.source as document_source
 
 
 class DocumentWorkflowFunctionSet(TypedDict):

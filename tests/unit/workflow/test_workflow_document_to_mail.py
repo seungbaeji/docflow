@@ -7,7 +7,7 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
     InMemoryArtifactRepository,
 )
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
-from docflow_agent.testing.document_workflow import build_document_workflow_kwargs
+from support.document_workflow import build_document_workflow_kwargs
 
 
 def test_document_to_mail_stops_for_pending_approval() -> None:

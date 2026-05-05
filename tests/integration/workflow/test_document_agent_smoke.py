@@ -12,7 +12,7 @@ from docflow_agent.types.boundary.external import PdfDocument, PdfElement
 from docflow_agent.types.value.document_agent import DocumentAgentToolContext
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
 from docflow_agent.tools import DOCUMENT_AGENT_TOOLS
-from docflow_agent.testing.document_workflow import build_document_workflow_functions
+from support.document_workflow import build_document_workflow_functions
 
 
 def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
