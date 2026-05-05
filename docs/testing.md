@@ -12,6 +12,7 @@
 
 - 순수 함수 중심의 `core`
 - 얇은 orchestration 역할의 `usecases`
+- state/context를 관리하는 `workflow`
 - 작은 함수와 client로 나뉜 `outbound`
 - `monkeypatch`, fake response, `tmp_path` 같은 로컬 테스트 도구
 
@@ -26,9 +27,9 @@
 - business rule과 category 판단을 집중적으로 테스트
 
 예시:
-- `tests/test_category_invoice.py`
-- `tests/test_invoice_rule.py`
-- `tests/test_edit_invoice.py`
+- `tests/unit/core/test_category_invoice.py`
+- `tests/unit/core/test_invoice_rule.py`
+- `tests/unit/core/test_edit_invoice.py`
 
 ### usecases
 
@@ -40,9 +41,28 @@
 - unsupported flow에서 어떤 에러를 올리는지
 
 예시:
-- `tests/test_process_source.py`
+- `tests/unit/usecases/test_process_source.py`
 
 이 테스트에서는 `docflow_agent.usecases.process_source` 내부의 `load_spreadsheet_source`를 직접 바꿔 끼웁니다. 별도 port나 abstract adapter 없이도 흐름 검증이 가능합니다.
+
+### workflow
+
+`workflow`는 여러 usecase를 연결하고 state/context를 관리하는 상위 오케스트레이션 객체입니다.
+
+현재 구현은 LangGraph를 사용하지만, 테스트 대상은 framework 자체가 아니라 다음 동작입니다.
+
+- route 선택
+- 단계 전이
+- artifact ref 생성
+- state safety
+- human-in-the-loop pending / approve / reject / resume
+
+예시:
+- `tests/unit/workflow/test_route_flow.py`
+- `tests/unit/workflow/test_state_safety.py`
+- `tests/unit/workflow/test_workflow_document_to_mail.py`
+
+즉 workflow 테스트는 "LangGraph 라이브러리 검증"이 아니라 "graph로 표현된 우리 흐름 검증"입니다.
 
 ### outbound
 
@@ -55,9 +75,9 @@
 - automation 실행기: strategy와 결과 값 검증
 
 예시:
-- `tests/test_ecm.py`
-- `tests/test_llm.py`
-- `tests/test_document_automation.py`
+- `tests/integration/outbound/test_ecm.py`
+- `tests/integration/outbound/test_llm.py`
+- `tests/integration/outbound/test_document_automation.py`
 
 즉 outbound는 "provider를 인터페이스로 감싸서 테스트"하는 것이 아니라 "외부 부작용을 로컬 fake로 바꿔서 테스트"합니다.
 

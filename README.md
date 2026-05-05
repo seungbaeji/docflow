@@ -14,6 +14,7 @@ usecases -> outbound
 
 - `inbound`: FastAPI, Streamlit, LangGraph, CLI 진입점
 - `usecases`: 소스 조회, core 호출, outbound 호출, 결과 조합, 저장/전달 orchestration
+- `workflow`: state/context를 관리하며 여러 usecase를 연결하는 상위 실행 흐름. 현재는 LangGraph로 실행
 - `core`: source kind 판단, unit 파싱, category 판단, bundle 결합, 분석, 규칙, edit intent 생성
 - `outbound`: ECM, files, mail, SAP, OCR, LLM, DB, Excel automation, RPA, COM 같은 외부 연동과 실행
   - `outbound/external`: ECM, SAP, mail, OCR, storage, DB, LLM 같은 외부 시스템 연동
@@ -27,8 +28,11 @@ usecases -> outbound
 - `bundle`: 여러 unit을 비즈니스 목적에 맞게 합친 구조
 - `category`: business meaning. 예: invoice, settlement
 - `edit intent`: core가 결정한 수정 명세. 실제 파일/애플리케이션 수정은 outbound가 수행
+- `workflow`: artifact ref와 human decision을 들고 가며 전체 흐름을 이어가는 실행 단위
 
 core는 구조화된 타입만 다루고 outbound를 전혀 모릅니다. outbound는 외부 응답, 파일, bytes, API 호출뿐 아니라 문서 수정 실행과 애플리케이션 자동화까지 책임집니다.
+
+workflow는 `tool`과 다릅니다. tool은 stateless 진입점이고, workflow는 작은 state와 artifact ref를 유지하면서 여러 단계를 재개 가능한 흐름으로 연결합니다. 현재 구현은 LangGraph를 사용하지만, workflow 개념 자체가 LangGraph에 종속되지는 않습니다.
 
 ## 프로젝트 구조
 

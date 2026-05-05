@@ -29,6 +29,7 @@ source -> parse -> unit -> category -> combine -> analyze -> rules -> edit
 ## 현재 문서
 
 - `model.md`: source, unit, bundle, category 모델 설명
+- `workflow.md`: workflow 개념과 state/context 관리 설명
 - `editing.md`: edit intent와 document automation 경계 설명
 - `ecm.md`: 범용 ECM 연동 방식과 `crypto/search/download/upload` 설명
 - `llm.md`: Agent에서 사용하는 LLM outbound 구성과 설정 설명

@@ -16,6 +16,7 @@ nav:
   - Home: index.md
   - Architecture:
       - Source / Unit / Bundle: model.md
+      - Workflow: workflow.md
       - Editing And Automation: editing.md
   - Integrations:
       - ECM: ecm.md
