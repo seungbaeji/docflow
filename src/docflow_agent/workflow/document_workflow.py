@@ -141,18 +141,13 @@ def create_document_workflow(
 
 def invoke_document_workflow(
     user_input: str,
+    workflow: Any,
     human_decisions: list[HumanDecision] | None = None,
-    workflow: Any | None = None,
 ) -> WorkflowState:
-    active_workflow = workflow
-    if active_workflow is None:
-        from docflow_agent.bootstrap import get_container
-
-        active_workflow = get_container().document_workflow
     initial_state: WorkflowState = {"user_input": user_input}
     if human_decisions:
         initial_state["human_decisions"] = human_decisions
-    return cast(WorkflowState, active_workflow.invoke(initial_state))
+    return cast(WorkflowState, workflow.invoke(initial_state))
 
 
 def workflow_state_to_response(state: WorkflowState) -> dict[str, object]:

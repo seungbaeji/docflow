@@ -89,24 +89,14 @@ answer = ask_document_question(
 
 ## API surface
 
-FastAPI entrypoint는 `POST /chat` endpoint를 제공합니다. 이 endpoint는 `system_prompt`와 멀티턴 `history`를 함께 받을 수 있습니다.
+FastAPI entrypoint는 `POST /chat` endpoint를 제공합니다. system prompt는 backend의 `src/docflow_agent/config/prompt.py`에서 관리하고, 대화 히스토리는 backend가 `session_id`별로 LangChain chat history로 관리합니다.
 
 입력:
 
 ```json
 {
   "message": "이어서 한 문장 더 설명해줘",
-  "system_prompt": "You are a concise assistant.",
-  "history": [
-    {
-      "role": "user",
-      "content": "안녕하세요. 간단히 자기소개해줘"
-    },
-    {
-      "role": "assistant",
-      "content": "안녕하세요. 문서 처리 워크플로우를 돕는 assistant입니다."
-    }
-  ]
+  "session_id": "session-001"
 }
 ```
 
@@ -114,6 +104,7 @@ FastAPI entrypoint는 `POST /chat` endpoint를 제공합니다. 이 endpoint는 
 
 ```json
 {
+  "session_id": "session-001",
   "message": "...",
   "provider": "gemini",
   "model": "gemini-2.0-flash"

@@ -125,7 +125,7 @@ UI는 현재 Streamlit 기반의 local chat app입니다.
 
 - 멀티턴 대화
 - system prompt는 `src/docflow_agent/config/prompt.py`에서 관리
-- 세션별 대화 히스토리 유지
+- 백엔드 `session_id` 기준 대화 히스토리 유지
 
 브라우저 UI는 FastAPI `POST /chat` endpoint를 호출하는 thin client입니다. 따라서 UI를 쓰려면 API 서버가 먼저 떠 있어야 합니다. 기본 연결 주소는 `DOCFLOW_AGENT_API__PUBLIC_BASE_URL`이며, 기본값은 `http://127.0.0.1:8000`입니다.
 
@@ -141,11 +141,7 @@ curl -X POST http://127.0.0.1:8000/chat \
   -H "Content-Type: application/json" \
   -d '{
     "message":"이어서 한 문장 더 설명해줘",
-    "system_prompt":"You are a concise assistant.",
-    "history":[
-      {"role":"user","content":"안녕하세요. 간단히 자기소개해줘"},
-      {"role":"assistant","content":"안녕하세요. 문서 처리 워크플로우를 돕는 assistant입니다."}
-    ]
+    "session_id":"session-001"
   }'
 ```
 

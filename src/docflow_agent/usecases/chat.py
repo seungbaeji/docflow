@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Sequence
+from dataclasses import dataclass
 
+from langchain_core.messages import AIMessage, HumanMessage
+
+from docflow_agent.ports.chat_history import ChatHistoryPort
 from docflow_agent.ports.llm import DocumentLlmPort
 from docflow_agent.types.value.chat import ChatTurn
 
@@ -10,15 +13,36 @@ from docflow_agent.types.value.chat import ChatTurn
 @dataclass(frozen=True)
 class ChatUsecase:
     llm_gateway: DocumentLlmPort
+    chat_history_store: ChatHistoryPort
+    system_prompt: str
 
     def respond(
         self,
         message: str,
-        system_prompt: str | None = None,
-        history: Sequence[ChatTurn] | None = None,
+        session_id: str,
     ) -> str:
-        return self.llm_gateway.chat(
+        chat_history = self.chat_history_store.get(session_id)
+        reply = self.llm_gateway.chat(
             message=message,
-            system_prompt=system_prompt,
-            history=history,
+            system_prompt=self.system_prompt,
+            history=_to_chat_turns(chat_history.messages),
         )
+        chat_history.add_message(HumanMessage(content=message))
+        chat_history.add_message(AIMessage(content=reply))
+        return reply
+
+
+def _to_chat_turns(messages: Sequence[object]) -> list[ChatTurn]:
+    turns: list[ChatTurn] = []
+    for message in messages:
+        if isinstance(message, HumanMessage):
+            turns.append(ChatTurn(role="user", content=_content_to_text(message.content)))
+        elif isinstance(message, AIMessage):
+            turns.append(ChatTurn(role="assistant", content=_content_to_text(message.content)))
+    return turns
+
+
+def _content_to_text(content: object) -> str:
+    if isinstance(content, str):
+        return content
+    return str(content)

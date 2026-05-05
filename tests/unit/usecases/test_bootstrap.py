@@ -1,5 +1,6 @@
 from docflow_agent.bootstrap import build_container
 from docflow_agent.config.settings import ApiSettings, AppSettings, LlmSettings, Settings
+from docflow_agent.outbound.testing.chat_history import InMemoryChatHistoryStore
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
 from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
@@ -22,11 +23,10 @@ def test_build_container_wires_testing_dependencies_by_default() -> None:
 
     assert isinstance(container.artifact_repository, InMemoryArtifactRepository)
     assert isinstance(container.llm_gateway, StubDocumentLlmGateway)
+    assert isinstance(container.chat_history_store, InMemoryChatHistoryStore)
     assert isinstance(container.processing_record_store, InMemoryProcessingRecordStore)
     assert isinstance(container.vector_store, InMemoryVectorStore)
     assert isinstance(container.workflow_queue, InMemoryWorkflowQueue)
-    assert container.document_usecases.artifact_repository is container.artifact_repository
-    assert container.document_workflow is not None
 
 
 def test_build_container_uses_injected_dependencies() -> None:
@@ -50,4 +50,4 @@ def test_build_container_uses_injected_dependencies() -> None:
     assert container.processing_record_store is processing_store
     assert container.vector_store is vector_store
     assert container.workflow_queue is queue
-    assert container.workflow_runtime.workflow_queue is queue
+    assert container.chat_history_store is not None

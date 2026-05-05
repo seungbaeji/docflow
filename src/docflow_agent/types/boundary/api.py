@@ -5,7 +5,6 @@ from typing import Any, Literal
 from pydantic import Field, model_validator
 
 from docflow_agent.types.boundary.base import BoundaryModel
-from docflow_agent.types.value.chat import ChatTurn
 from docflow_agent.workflow.state import HumanDecision
 
 
@@ -44,24 +43,13 @@ class ProcessRequest(BoundaryModel):
         return [decision.to_workflow_decision() for decision in self.human_decisions]
 
 
-class ChatMessage(BoundaryModel):
-    role: Literal["user", "assistant"]
-    content: str = Field(min_length=1)
-
-    def to_value(self) -> ChatTurn:
-        return ChatTurn(role=self.role, content=self.content)
-
-
 class ChatRequest(BoundaryModel):
     message: str = Field(min_length=1)
-    system_prompt: str | None = None
-    history: list[ChatMessage] = Field(default_factory=list)
-
-    def to_value_history(self) -> list[ChatTurn]:
-        return [message.to_value() for message in self.history]
+    session_id: str | None = Field(default=None, min_length=1)
 
 
 class ChatResponse(BoundaryModel):
+    session_id: str
     message: str
     provider: str
     model: str

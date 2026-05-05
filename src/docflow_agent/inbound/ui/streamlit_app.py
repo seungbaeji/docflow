@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
+from uuid import uuid4
 from urllib import error, request
 
 import streamlit as st
 
-from docflow_agent.config.prompt import get_chat_system_prompt
 from docflow_agent.config.settings import get_settings
 from docflow_agent.types.value.chat import ChatTurn
 
@@ -19,9 +19,10 @@ def main() -> None:
     with st.sidebar:
         if st.button("Clear conversation"):
             st.session_state.chat_history = []
+            st.session_state.chat_session_id = str(uuid4())
             st.rerun()
         st.caption(f"API: {settings.api.public_base_url}")
-        st.caption("System prompt is configured in docflow_agent/config/prompt.py")
+        st.caption(f"Session: {st.session_state.chat_session_id}")
 
     _render_chat_tab(api_base_url=settings.api.public_base_url.rstrip("/"))
 
@@ -29,6 +30,8 @@ def main() -> None:
 def _ensure_chat_state() -> None:
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
+    if "chat_session_id" not in st.session_state:
+        st.session_state.chat_session_id = str(uuid4())
 
 
 def _render_chat_tab(api_base_url: str) -> None:
@@ -43,7 +46,6 @@ def _render_chat_tab(api_base_url: str) -> None:
     if user_message is None:
         return
 
-    history: list[ChatTurn] = list(st.session_state.chat_history)
     st.session_state.chat_history.append(ChatTurn(role="user", content=user_message))
 
     with st.chat_message("user"):
@@ -53,7 +55,7 @@ def _render_chat_tab(api_base_url: str) -> None:
         reply = _request_chat_reply(
             api_base_url=api_base_url,
             message=user_message,
-            history=history,
+            session_id=st.session_state.chat_session_id,
         )
     except RuntimeError as exc:
         with st.chat_message("assistant"):
@@ -69,12 +71,11 @@ def _render_chat_tab(api_base_url: str) -> None:
 def _request_chat_reply(
     api_base_url: str,
     message: str,
-    history: list[ChatTurn],
+    session_id: str,
 ) -> str:
     payload = {
         "message": message,
-        "system_prompt": get_chat_system_prompt(),
-        "history": [{"role": turn.role, "content": turn.content} for turn in history],
+        "session_id": session_id,
     }
     body = json.dumps(payload).encode("utf-8")
     http_request = request.Request(
@@ -94,7 +95,10 @@ def _request_chat_reply(
         raise RuntimeError(f"Could not reach chat API at {api_base_url}: {exc.reason}") from exc
 
     parsed = json.loads(raw_response)
+    response_session_id = parsed.get("session_id")
     message_value = parsed.get("message")
+    if isinstance(response_session_id, str):
+        st.session_state.chat_session_id = response_session_id
     if not isinstance(message_value, str):
         raise RuntimeError("Chat API response did not include a valid message.")
     return message_value

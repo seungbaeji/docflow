@@ -3,10 +3,13 @@ from __future__ import annotations
 import argparse
 
 from docflow_agent.bootstrap import get_container
+from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
 from docflow_agent.workflow.document_workflow import (
+    create_document_workflow,
     invoke_document_workflow,
     workflow_state_to_response,
 )
+from docflow_agent.workflow.nodes import WorkflowRuntime
 from docflow_agent.workflow.state import HumanDecision
 
 
@@ -41,9 +44,24 @@ def main() -> None:
     args = parser.parse_args()
 
     container = get_container()
+    document_usecases = RepositoryBackedDocumentUsecases(
+        artifact_repository=container.artifact_repository,
+        llm_gateway=container.llm_gateway,
+        processing_record_store=container.processing_record_store,
+        vector_store=container.vector_store,
+    )
+    workflow_runtime = WorkflowRuntime(
+        processing_record_store=container.processing_record_store,
+        workflow_queue=container.workflow_queue,
+    )
+    workflow = create_document_workflow(
+        usecases=document_usecases,
+        artifact_repository=container.artifact_repository,
+        workflow_runtime=workflow_runtime,
+    )
     state = invoke_document_workflow(
         user_input=args.user_input,
+        workflow=workflow,
         human_decisions=_build_human_decisions(args.approve_send_mail),
-        workflow=container.document_workflow,
     )
     print(workflow_state_to_response(state))
