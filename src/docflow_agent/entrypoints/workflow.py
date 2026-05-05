@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 
 from docflow_agent.workflow.document_workflow import (

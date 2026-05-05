@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from docflow_agent.settings import get_settings
 from docflow_agent.usecases.application_info import get_dev_summary
 

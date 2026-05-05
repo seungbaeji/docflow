@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from docflow_agent.workflow.document_workflow import (
     invoke_document_workflow,
     workflow_state_to_response,
