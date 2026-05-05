@@ -53,3 +53,12 @@ class ChatResponse(BoundaryModel):
     message: str
     provider: str
     model: str
+
+
+class UploadResponse(BoundaryModel):
+    session_id: str
+    file_name: str
+    source_ref_id: str
+    stored_path: str
+    content_type: str
+    size_bytes: int = Field(ge=0)

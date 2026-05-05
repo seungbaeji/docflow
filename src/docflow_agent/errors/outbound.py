@@ -29,7 +29,7 @@ class MissingPdfDependencyError(OutboundError):
     def __init__(self, dependency_name: str) -> None:
         super().__init__(
             f"PDF integration requires optional dependency={dependency_name}. "
-            "Install the PDF adapter dependency before parsing PDFs."
+            'Install it with: uv sync --extra pdf'
         )
         self.dependency_name = dependency_name
 

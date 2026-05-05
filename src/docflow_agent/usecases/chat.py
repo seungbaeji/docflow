@@ -20,11 +20,15 @@ class ChatUsecase:
         self,
         message: str,
         session_id: str,
+        document_context: str | None = None,
     ) -> str:
         chat_history = self.chat_history_store.get(session_id)
+        system_prompt = self.system_prompt
+        if document_context is not None:
+            system_prompt = f"{system_prompt}\n\nCurrent document context:\n{document_context}"
         reply = self.llm_gateway.chat(
             message=message,
-            system_prompt=self.system_prompt,
+            system_prompt=system_prompt,
             history=_to_chat_turns(chat_history.messages),
         )
         chat_history.add_message(HumanMessage(content=message))

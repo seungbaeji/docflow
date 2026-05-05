@@ -1,4 +1,6 @@
+import base64
 from collections.abc import Sequence
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -16,11 +18,12 @@ from docflow_agent.inbound.api.server import create_app
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.ports.llm import DocumentLlmPort
 from docflow_agent.types.value.chat import ChatTurn
+from docflow_agent.usecases.document_workflow import UsecaseOutcome
 
 
-def _settings_without_env() -> Settings:
+def _settings_without_env(*, upload_dir: str = "tmp/uploads") -> Settings:
     return Settings.model_construct(
-        app=AppSettings(),
+        app=AppSettings(upload_dir=upload_dir),
         api=ApiSettings(),
         ui=UiSettings(),
         llm=LlmSettings(),
@@ -109,3 +112,121 @@ def test_chat_route_translates_llm_failures() -> None:
 
     assert response.status_code == 429
     assert response.json()["detail"] == "LLM request failed for provider=gemini: quota exhausted"
+
+
+def test_upload_route_saves_file_to_configured_directory(tmp_path: Path) -> None:
+    upload_dir = tmp_path / "uploads"
+    container = build_container(
+        settings=_settings_without_env(upload_dir=str(upload_dir)),
+    )
+    app = create_app(settings=container.settings, container=container)
+    with TestClient(app) as client:
+        response = client.post(
+            "/uploads",
+            content=b"%PDF-1.7 fake",
+            headers={
+                "Content-Type": "application/pdf",
+                "X-Filename": "invoice.pdf",
+                "X-Session-Id": "session-001",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    stored_path = Path(payload["stored_path"])
+    assert payload["session_id"] == "session-001"
+    assert payload["file_name"] == "invoice.pdf"
+    assert payload["source_ref_id"].startswith("source-")
+    assert payload["content_type"] == "application/pdf"
+    assert payload["size_bytes"] == len(b"%PDF-1.7 fake")
+    assert stored_path.exists()
+    assert stored_path.read_bytes() == b"%PDF-1.7 fake"
+
+
+def test_upload_route_rejects_missing_filename() -> None:
+    container = build_container(
+        settings=_settings_without_env(),
+    )
+    app = create_app(settings=container.settings, container=container)
+    with TestClient(app) as client:
+        response = client.post(
+            "/uploads",
+            content=b"payload",
+            headers={"Content-Type": "application/pdf"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Upload filename is required."
+
+
+def test_upload_route_accepts_unicode_filename_via_base64_header(tmp_path: Path) -> None:
+    upload_dir = tmp_path / "uploads"
+    container = build_container(
+        settings=_settings_without_env(upload_dir=str(upload_dir)),
+    )
+    app = create_app(settings=container.settings, container=container)
+    encoded_name = base64.urlsafe_b64encode("정산보고서.pdf".encode("utf-8")).decode("ascii")
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/uploads",
+            content=b"%PDF-1.7 fake",
+            headers={
+                "Content-Type": "application/pdf",
+                "X-Filename-Base64": encoded_name,
+                "X-Session-Id": "session-kr",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["session_id"] == "session-kr"
+    assert payload["file_name"] == "정산보고서.pdf"
+    assert Path(payload["stored_path"]).exists()
+
+
+def test_chat_route_processes_current_uploaded_document(tmp_path: Path) -> None:
+    upload_dir = tmp_path / "uploads"
+    llm_gateway = StubDocumentLlmGateway(chat_response="chat ok")
+    container = build_container(
+        settings=_settings_without_env(upload_dir=str(upload_dir)),
+        llm_gateway=llm_gateway,
+    )
+    app = create_app(settings=container.settings, container=container)
+
+    def fake_process_source_ref(
+        self: object,
+        source_ref_id: str,
+    ) -> UsecaseOutcome:
+        del self
+        return UsecaseOutcome(
+            ref_id=source_ref_id,
+            message="Document processed with 1 categorized units.",
+        )
+
+    # Route code creates the usecase directly, so patch the method on the imported class.
+    from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+
+    original_process_source_ref = RepositoryBackedDocumentUsecases.process_source_ref
+    RepositoryBackedDocumentUsecases.process_source_ref = fake_process_source_ref  # type: ignore[method-assign]
+    try:
+        with TestClient(app) as client:
+            upload_response = client.post(
+                "/uploads",
+                content=b"%PDF-1.7 fake",
+                headers={
+                    "Content-Type": "application/pdf",
+                    "X-Filename": "invoice.pdf",
+                    "X-Session-Id": "session-uploaded-doc",
+                },
+            )
+            chat_response = client.post(
+                "/chat",
+                json={"message": "해당 문서를 읽고 분석해 줘", "session_id": "session-uploaded-doc"},
+            )
+    finally:
+        RepositoryBackedDocumentUsecases.process_source_ref = original_process_source_ref  # type: ignore[method-assign]
+
+    assert upload_response.status_code == 200
+    assert chat_response.status_code == 200
+    assert chat_response.json()["message"] == "Document processed with 1 categorized units."

@@ -13,12 +13,14 @@ from docflow_agent.outbound.testing.rdbms import InMemoryWorkflowRunStore
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
+from docflow_agent.outbound.testing.session_context import InMemorySessionDocumentStore
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
 from docflow_agent.ports.chat_history import ChatHistoryPort
 from docflow_agent.ports.llm import DocumentLlmPort
 from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.ports.rdbms import WorkflowRunStore
+from docflow_agent.ports.session_context import SessionDocumentStore
 from docflow_agent.ports.vector_store import VectorStorePort
 
 
@@ -29,6 +31,7 @@ class AppContainer:
     llm_gateway: DocumentLlmPort
     pdf_client: OpenDataLoaderPdfClient
     chat_history_store: ChatHistoryPort
+    session_document_store: SessionDocumentStore
     workflow_run_store: WorkflowRunStore
     vector_store: VectorStorePort
     workflow_queue: WorkflowQueuePort
@@ -50,6 +53,7 @@ def build_container(
     llm_gateway: DocumentLlmPort | None = None,
     pdf_client: OpenDataLoaderPdfClient | None = None,
     chat_history_store: ChatHistoryPort | None = None,
+    session_document_store: SessionDocumentStore | None = None,
     workflow_run_store: WorkflowRunStore | None = None,
     vector_store: VectorStorePort | None = None,
     workflow_queue: WorkflowQueuePort | None = None,
@@ -59,6 +63,7 @@ def build_container(
     active_llm_gateway = llm_gateway or _build_llm_gateway(active_settings)
     active_pdf_client = pdf_client or OpenDataLoaderPdfClient()
     active_chat_history_store = chat_history_store or InMemoryChatHistoryStore()
+    active_session_document_store = session_document_store or InMemorySessionDocumentStore()
     active_workflow_run_store = workflow_run_store or InMemoryWorkflowRunStore()
     active_vector_store = vector_store or InMemoryVectorStore()
     active_workflow_queue = workflow_queue or InMemoryWorkflowQueue()
@@ -69,6 +74,7 @@ def build_container(
         llm_gateway=active_llm_gateway,
         pdf_client=active_pdf_client,
         chat_history_store=active_chat_history_store,
+        session_document_store=active_session_document_store,
         workflow_run_store=active_workflow_run_store,
         vector_store=active_vector_store,
         workflow_queue=active_workflow_queue,

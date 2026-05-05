@@ -61,6 +61,21 @@ class RepositoryBackedDocumentUsecases:
             metadata={"stage": "loaded"},
         )
 
+    def register_uploaded_source(self, file_info: FileInfo) -> str:
+        source_type = "pdf" if file_info.content_type == "application/pdf" else "generic"
+        return self.artifact_repository.save(
+            kind="source",
+            value={
+                "prompt": f"Uploaded file {file_info.name}",
+                "source_type": source_type,
+                "file_path": file_info.path,
+                "file_name": file_info.name,
+                "content_type": file_info.content_type,
+                "uploaded": True,
+            },
+            metadata={"stage": "uploaded"},
+        )
+
     def parse_units(self, source_ref_id: str) -> list[str]:
         source = self.artifact_repository.load("source", source_ref_id)
         prompt = str(source["prompt"])
@@ -80,6 +95,39 @@ class RepositoryBackedDocumentUsecases:
             )
             unit_refs.append(ref_id)
         return unit_refs
+
+    def process_source_ref(self, source_ref_id: str) -> UsecaseOutcome:
+        parsed_unit_ref_ids = self._get_existing_unit_refs(source_ref_id=source_ref_id, stage="parsed")
+        if not parsed_unit_ref_ids:
+            parsed_unit_ref_ids = self.parse_units(source_ref_id)
+
+        categorized_unit_ref_ids = self.categorize_units(parsed_unit_ref_ids)
+        bundle_ref_id = self.combine_bundle(categorized_unit_ref_ids)
+        return self.analyze(bundle_ref_id)
+
+    def build_document_context(self, source_ref_id: str) -> str:
+        source = self.artifact_repository.load("source", source_ref_id)
+        parsed_unit_ref_ids = self._get_existing_unit_refs(source_ref_id=source_ref_id, stage="parsed")
+        if not parsed_unit_ref_ids:
+            parsed_unit_ref_ids = self.parse_units(source_ref_id)
+
+        unit_summaries: list[str] = []
+        for unit_ref_id in parsed_unit_ref_ids[:3]:
+            unit = self.artifact_repository.load("unit", unit_ref_id)
+            content = unit.get("content")
+            if isinstance(content, str) and content.strip():
+                unit_summaries.append(content.strip())
+            else:
+                unit_summaries.append(str(unit.get("name", "document_unit")))
+
+        return "\n".join(
+            [
+                f"source_type={source.get('source_type', 'unknown')}",
+                f"file_path={source.get('file_path')}",
+                "unit_summaries:",
+                *[f"- {summary}" for summary in unit_summaries],
+            ]
+        )
 
     def _parse_pdf_units(self, *, source_ref_id: str, source: dict[str, object]) -> list[str]:
         file_path = source.get("file_path")
@@ -345,4 +393,10 @@ class RepositoryBackedDocumentUsecases:
                     metadata=metadata,
                 )
             ]
+        )
+
+    def _get_existing_unit_refs(self, *, source_ref_id: str, stage: str) -> list[str]:
+        return self.artifact_repository.find(
+            "unit",
+            {"source_ref_id": source_ref_id, "stage": stage},
         )

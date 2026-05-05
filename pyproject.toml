@@ -12,11 +12,13 @@ dependencies = [
   "langchain-google-genai>=2.1.0",
   "langchain-openai>=0.3.0",
   "langgraph>=0.2.0",
-  "opendataloader-pdf>=2.0.0",
   "pydantic-settings>=2.6.0",
 ]
 
 [project.optional-dependencies]
+pdf = [
+  "opendataloader-pdf>=2.0.0",
+]
 dev = [
   "pytest>=8.0.0",
   "ruff>=0.11.0",

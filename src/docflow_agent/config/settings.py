@@ -13,6 +13,7 @@ class AppSettings(BaseModel):
     title: str = "Document Processing Service"
     env: Literal["local", "test", "prod"] = "local"
     debug: bool = False
+    upload_dir: str = "tmp/uploads"
 
 
 class ApiSettings(BaseModel):
