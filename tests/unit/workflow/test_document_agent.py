@@ -10,7 +10,7 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 )
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.workflow.document_services import bind_document_workflow_services
+from docflow_agent.workflow.document import bind_document_workflow_services
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
 from docflow_agent.workflow.tools import (
     bind_document_agent_tools,

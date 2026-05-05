@@ -5,7 +5,7 @@ from typing import Any
 
 from docflow_agent.bootstrap import build_container
 from docflow_agent.workflow.document_workflow import create_document_workflow
-from docflow_agent.workflow.document_services import bind_document_workflow_services
+from docflow_agent.workflow.document import bind_document_workflow_services
 from docflow_agent.workflow.nodes import WorkflowRuntime
 
 

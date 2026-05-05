@@ -6,7 +6,7 @@ from typing import Any, cast
 from langgraph.graph import END, START, StateGraph
 
 from docflow_agent.ports.repositories import ArtifactRepository
-from docflow_agent.workflow.document_services import DocumentWorkflowServices
+from docflow_agent.workflow.document import DocumentWorkflowServices
 from docflow_agent.workflow.nodes import (
     WorkflowRuntime,
     analyze_node,

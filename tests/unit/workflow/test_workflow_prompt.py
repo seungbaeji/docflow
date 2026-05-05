@@ -11,7 +11,7 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 )
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.workflow.document_services import bind_document_workflow_services
+from docflow_agent.workflow.document import bind_document_workflow_services
 
 
 def test_prompt_routes_to_document_process_and_creates_artifact_refs() -> None:

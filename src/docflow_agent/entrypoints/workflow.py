@@ -8,7 +8,7 @@ from docflow_agent.workflow.document_workflow import (
     invoke_document_workflow,
     workflow_state_to_response,
 )
-from docflow_agent.workflow.document_services import bind_document_workflow_services
+from docflow_agent.workflow.document import bind_document_workflow_services
 from docflow_agent.workflow.nodes import WorkflowRuntime
 from docflow_agent.workflow.state import HumanDecision
 

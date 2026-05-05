@@ -4,7 +4,7 @@ from docflow_agent.workflow.document_workflow import create_document_workflow
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
-from docflow_agent.workflow.document_services import bind_document_workflow_services
+from docflow_agent.workflow.document import bind_document_workflow_services
 
 
 def _assert_no_unsafe_payloads(value: Any) -> None:

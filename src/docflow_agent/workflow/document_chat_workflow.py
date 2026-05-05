@@ -7,7 +7,7 @@ from langgraph.graph import END, START, StateGraph
 from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.ports.session_context import SessionDocumentStore
 from docflow_agent.types.value.document import DocumentPayload
-from docflow_agent.workflow.document_services import DocumentWorkflowServices
+from docflow_agent.workflow.document import DocumentWorkflowServices
 
 
 class DocumentChatState(TypedDict, total=False):

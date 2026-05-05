@@ -44,7 +44,7 @@ from docflow_agent.workflow.document_workflow import (
     workflow_state_to_response,
 )
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
-from docflow_agent.workflow.document_services import (
+from docflow_agent.workflow.document import (
     DocumentWorkflowServices,
     bind_document_workflow_services,
 )
