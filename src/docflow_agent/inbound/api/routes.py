@@ -52,8 +52,8 @@ from docflow_agent.workflow.document_workflow import (
 )
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
 from docflow_agent.workflow.nodes import WorkflowRuntime
-from docflow_agent.workflow.tools import (
-    bind_document_agent_tools,
+from docflow_agent.tools import (
+    DOCUMENT_AGENT_TOOLS,
     DocumentAgentToolContext,
 )
 
@@ -375,14 +375,15 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
                 message=request.message,
             )
             source_ref_id = prep_state["source_ref_id"]
+            document_payload = document_functions["build_document_payload"](source_ref_id)
+            document_summary = document_functions["summarize_source_ref"](source_ref_id)
             document_agent_runtime = DocumentAgentRuntime(
                 llm_gateway=container.llm_gateway,
-                tools=bind_document_agent_tools(
-                    build_document_payload=document_functions["build_document_payload"],
-                    summarize_source_ref=document_functions["summarize_source_ref"],
-                ),
+                tools=DOCUMENT_AGENT_TOOLS,
                 tool_context=DocumentAgentToolContext(
                     source_ref_id=source_ref_id,
+                    document_payload=document_payload,
+                    document_summary=document_summary,
                 ),
                 runtime_store=container.runtime_store,
                 system_prompt=get_document_agent_system_prompt(),

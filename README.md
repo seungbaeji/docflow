@@ -14,6 +14,7 @@ usecases -> outbound
 
 - `inbound`: FastAPI, Streamlit, CLI 같은 진입점
 - `workflow`: 요청 하나의 실행 문맥을 유지하면서 여러 usecase를 연결하는 stateful orchestration object
+- `tools`: agent/tool-calling surface. workflow가 준비한 explicit context를 소비하는 내부 action layer
 - `usecases`: source 조회, core 호출, outbound 호출, 결과 조합, 저장/전달 orchestration
 - `core`: source kind 판단, unit 파싱, category 판단, bundle 결합, 분석, 규칙, edit intent 생성
 - `outbound`: ECM, files, mail, SAP, OCR, LLM, DB, Excel automation, RPA, COM 같은 외부 연동과 실행
@@ -76,6 +77,7 @@ src/docflow_agent/
     ui/
   config/
   entrypoints/
+  tools/
   workflow/
   usecases/
   core/

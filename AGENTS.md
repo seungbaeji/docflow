@@ -26,6 +26,7 @@ Rules:
 - `outbound` must not call `core`
 - `inbound` is entrypoint only
 - `workflow` is its own layer, not part of `inbound`
+- `tools` is its own layer for agent/tool-calling actions, not part of `workflow`
 
 ## Workflow
 
@@ -59,6 +60,13 @@ Rules:
 - no business rules
 - no parsing logic
 - no direct file/automation details
+
+### tools
+
+- internal agent/tool-calling action surface
+- consume explicit prepared context from workflow
+- do not own workflow state transitions
+- do not decide current document or session state
 
 ### core
 

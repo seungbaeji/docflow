@@ -10,11 +10,9 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 )
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
+from docflow_agent.types.value.document_agent import DocumentAgentToolContext
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
-from docflow_agent.workflow.tools import (
-    bind_document_agent_tools,
-    DocumentAgentToolContext,
-)
+from docflow_agent.tools import DOCUMENT_AGENT_TOOLS
 from docflow_agent.testing.document_workflow import build_document_workflow_functions
 
 
@@ -60,14 +58,15 @@ def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> Docum
         len(b"%PDF-1.7 fake"),
     )
     source_ref_id = usecases["source_from_upload"](upload_id)
+    document_payload = usecases["build_document_payload"](source_ref_id)
+    document_summary = usecases["summarize_source_ref"](source_ref_id)
     return DocumentAgentRuntime(
         llm_gateway=llm_gateway,
-        tools=bind_document_agent_tools(
-            build_document_payload=usecases["build_document_payload"],
-            summarize_source_ref=usecases["summarize_source_ref"],
-        ),
+        tools=DOCUMENT_AGENT_TOOLS,
         tool_context=DocumentAgentToolContext(
             source_ref_id=source_ref_id,
+            document_payload=document_payload,
+            document_summary=document_summary,
         ),
         runtime_store=runtime_store,
         system_prompt=get_document_agent_system_prompt(),

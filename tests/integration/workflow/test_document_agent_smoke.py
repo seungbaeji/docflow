@@ -9,11 +9,9 @@ from docflow_agent.config.settings import get_settings
 from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
+from docflow_agent.types.value.document_agent import DocumentAgentToolContext
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
-from docflow_agent.workflow.tools import (
-    bind_document_agent_tools,
-    DocumentAgentToolContext,
-)
+from docflow_agent.tools import DOCUMENT_AGENT_TOOLS
 from docflow_agent.testing.document_workflow import build_document_workflow_functions
 
 
@@ -69,15 +67,16 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
     )
     source_ref_id = usecases["source_from_upload"](upload_id)
     container.session_document_store.set_current_source_ref("smoke-session", source_ref_id)
+    document_payload = usecases["build_document_payload"](source_ref_id)
+    document_summary = usecases["summarize_source_ref"](source_ref_id)
 
     runtime = DocumentAgentRuntime(
         llm_gateway=container.llm_gateway,
-        tools=bind_document_agent_tools(
-            build_document_payload=usecases["build_document_payload"],
-            summarize_source_ref=usecases["summarize_source_ref"],
-        ),
+        tools=DOCUMENT_AGENT_TOOLS,
         tool_context=DocumentAgentToolContext(
             source_ref_id=source_ref_id,
+            document_payload=document_payload,
+            document_summary=document_summary,
         ),
         runtime_store=container.runtime_store,
         system_prompt=get_document_agent_system_prompt(),
