@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 
 from docflow_agent.bootstrap import get_container
+from docflow_agent.config.settings import get_settings
 from docflow_agent.inbound.api.routes import router
-from docflow_agent.settings import get_settings
 
 
 def create_app() -> FastAPI:

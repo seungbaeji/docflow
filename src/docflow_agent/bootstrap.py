@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
+from docflow_agent.config.settings import Settings, get_settings
 from docflow_agent.outbound.external.llm import ExternalDocumentLlmGateway, build_llm_client
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
@@ -17,7 +18,6 @@ from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.ports.repositories import ArtifactRepository
 from docflow_agent.ports.rdbms import ProcessingRecordPort
 from docflow_agent.ports.vector_store import VectorStorePort
-from docflow_agent.settings import Settings, get_settings
 from docflow_agent.usecases.chat import ChatUsecase
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
 from docflow_agent.workflow.document_workflow import create_document_workflow

@@ -1,4 +1,5 @@
 from docflow_agent.bootstrap import build_container
+from docflow_agent.config.settings import ApiSettings, AppSettings, LlmSettings, Settings
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.outbound.testing.queue import InMemoryWorkflowQueue
 from docflow_agent.outbound.testing.rdbms import InMemoryProcessingRecordStore
@@ -6,7 +7,6 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
     InMemoryArtifactRepository,
 )
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
-from docflow_agent.settings import ApiSettings, AppSettings, LlmSettings, Settings
 
 
 def _settings_without_env() -> Settings:

@@ -3,11 +3,11 @@ from collections.abc import Sequence
 from fastapi.testclient import TestClient
 
 from docflow_agent.bootstrap import build_container
+from docflow_agent.config.settings import ApiSettings, AppSettings, LlmSettings, Settings
 from docflow_agent.errors import LlmQuotaExceededError
 from docflow_agent.inbound.api.server import create_app
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.ports.llm import DocumentLlmPort
-from docflow_agent.settings import ApiSettings, AppSettings, LlmSettings, Settings
 from docflow_agent.types.value.chat import ChatTurn
 
 

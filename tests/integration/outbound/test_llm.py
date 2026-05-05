@@ -4,6 +4,7 @@ import types
 import pytest
 from pydantic import SecretStr
 
+from docflow_agent.config.settings import ApiSettings, AppSettings, LlmSettings, Settings
 from docflow_agent.errors import (
     LlmQuotaExceededError,
     LlmRequestError,
@@ -20,7 +21,6 @@ from docflow_agent.outbound.external.llm import (
     summarize_document,
 )
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
-from docflow_agent.settings import ApiSettings, AppSettings, LlmSettings, Settings
 from docflow_agent.types.value.chat import ChatTurn
 
 

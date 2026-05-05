@@ -17,7 +17,7 @@ from docflow_agent.errors import (
     UnsupportedLlmProviderError,
 )
 from docflow_agent.ports.llm import DocumentLlmPort
-from docflow_agent.settings import Settings, get_settings
+from docflow_agent.config.settings import Settings, get_settings
 from docflow_agent.types.value.chat import ChatTurn
 
 

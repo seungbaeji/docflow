@@ -19,7 +19,7 @@
 
 ## 설정
 
-환경변수 prefix는 `DOCFLOW_AGENT_`입니다. 이제 설정은 nested `BaseModel` 구조를 사용하므로 환경변수도 `__` 구분자를 사용합니다.
+환경변수 prefix는 `DOCFLOW_AGENT_`입니다. 설정 모델은 `src/docflow_agent/config/settings.py`에 있고, 시스템 프롬프트 기본값은 `src/docflow_agent/config/prompt.py`에서 관리합니다. 환경변수는 nested `BaseModel` 구조를 사용하므로 `__` 구분자를 사용합니다.
 
 - `DOCFLOW_AGENT_APP__NAME`
 - `DOCFLOW_AGENT_APP__TITLE`

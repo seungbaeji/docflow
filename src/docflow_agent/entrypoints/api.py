@@ -3,7 +3,7 @@ from __future__ import annotations
 import uvicorn
 
 from docflow_agent.bootstrap import get_container
-from docflow_agent.settings import get_settings
+from docflow_agent.config.settings import get_settings
 
 
 def main() -> None:
