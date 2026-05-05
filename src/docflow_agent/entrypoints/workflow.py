@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 
 from docflow_agent.bootstrap import get_container
-from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.usecases.document_workflow import bind_document_usecases
 from docflow_agent.workflow.document_workflow import (
     create_document_workflow,
     invoke_document_workflow,
@@ -44,7 +44,7 @@ def main() -> None:
     args = parser.parse_args()
 
     container = get_container()
-    document_usecases = RepositoryBackedDocumentUsecases(
+    document_usecases = bind_document_usecases(
         artifact_repository=container.artifact_repository,
         llm_gateway=container.llm_gateway,
         workflow_run_store=container.workflow_run_store,

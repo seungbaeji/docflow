@@ -9,14 +9,14 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.usecases.document_workflow import bind_document_usecases
 
 
 def test_analyze_persists_record_and_vector_document() -> None:
     repository = InMemoryArtifactRepository()
     workflow_run_store = InMemoryWorkflowRunStore()
     vector_store = InMemoryVectorStore()
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         workflow_run_store=workflow_run_store,
         vector_store=vector_store,
@@ -32,7 +32,7 @@ def test_analyze_persists_record_and_vector_document() -> None:
         metadata={"stage": "combined"},
     )
 
-    outcome = usecases.analyze(bundle_ref_id)
+    outcome = usecases["analyze"](bundle_ref_id)
 
     record = workflow_run_store.load_workflow_run(outcome.ref_id)
     assert record.status == "analyzed"
@@ -45,7 +45,7 @@ def test_analyze_persists_record_and_vector_document() -> None:
 def test_compose_mail_uses_llm_gateway_when_available() -> None:
     repository = InMemoryArtifactRepository()
     llm_gateway = StubDocumentLlmGateway(summary_response="LLM generated mail body")
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         llm_gateway=llm_gateway,
     )
@@ -59,7 +59,7 @@ def test_compose_mail_uses_llm_gateway_when_available() -> None:
         metadata={"stage": "filtered"},
     )
 
-    draft_ref_id = usecases.compose_mail(dataset_ref_id)
+    draft_ref_id = usecases["compose_mail"](dataset_ref_id)
 
     draft = repository.load("draft", draft_ref_id)
     assert draft["body"] == "LLM generated mail body"
@@ -69,7 +69,7 @@ def test_compose_mail_uses_llm_gateway_when_available() -> None:
 def test_send_mail_persists_record() -> None:
     repository = InMemoryArtifactRepository()
     workflow_run_store = InMemoryWorkflowRunStore()
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         workflow_run_store=workflow_run_store,
     )
@@ -80,7 +80,7 @@ def test_send_mail_persists_record() -> None:
         metadata={"stage": "composed"},
     )
 
-    outcome = usecases.send_mail(draft_ref_id)
+    outcome = usecases["send_mail"](draft_ref_id)
 
     record = workflow_run_store.load_workflow_run(outcome.ref_id)
     assert record.status == "sent"
@@ -114,14 +114,14 @@ def test_parse_units_uses_pdf_adapter_for_pdf_source(tmp_path: Path) -> None:
             ],
         )
 
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         pdf_client=OpenDataLoaderPdfClient(),
         pdf_parser=fake_pdf_parser,
     )
 
-    source_ref_id = usecases.load_source(f"이 PDF 파일을 분석해줘 {source_path}")
-    unit_ref_ids = usecases.parse_units(source_ref_id)
+    source_ref_id = usecases["load_source"](f"이 PDF 파일을 분석해줘 {source_path}")
+    unit_ref_ids = usecases["parse_units"](source_ref_id)
 
     assert len(unit_ref_ids) == 2
     first_unit = repository.load("unit", unit_ref_ids[0])
@@ -159,14 +159,14 @@ def test_summarize_source_ref_returns_human_readable_summary(tmp_path: Path) -> 
             ],
         )
 
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         pdf_client=OpenDataLoaderPdfClient(),
         pdf_parser=fake_pdf_parser,
     )
 
-    source_ref_id = usecases.load_source(f"이 PDF 파일을 분석해줘 {source_path}")
-    summary = usecases.summarize_source_ref(source_ref_id)
+    source_ref_id = usecases["load_source"](f"이 PDF 파일을 분석해줘 {source_path}")
+    summary = usecases["summarize_source_ref"](source_ref_id)
 
     assert "문서 분석을 완료했습니다." in summary
     assert "- 문서 유형: pdf" in summary
@@ -199,15 +199,15 @@ def test_answer_question_about_source_ref_uses_full_document_payload(tmp_path: P
             ],
         )
 
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         llm_gateway=llm_gateway,
         pdf_client=OpenDataLoaderPdfClient(),
         pdf_parser=fake_pdf_parser,
     )
 
-    source_ref_id = usecases.load_source(f"이 PDF 파일을 분석해줘 {source_path}")
-    answer = usecases.answer_question_about_source_ref(source_ref_id, "전체 내용을 설명해 줘")
+    source_ref_id = usecases["load_source"](f"이 PDF 파일을 분석해줘 {source_path}")
+    answer = usecases["answer_question_about_source_ref"](source_ref_id, "전체 내용을 설명해 줘")
 
     assert answer == "질문 응답"
     assert llm_gateway.asked_questions

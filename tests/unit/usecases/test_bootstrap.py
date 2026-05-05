@@ -1,3 +1,5 @@
+from langgraph.store.memory import InMemoryStore
+
 from docflow_agent.bootstrap import build_container
 from docflow_agent.config.settings import (
     ApiSettings,
@@ -13,7 +15,7 @@ from docflow_agent.outbound.testing.rdbms import InMemoryWorkflowRunStore
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
-from docflow_agent.outbound.testing.session_context import InMemorySessionDocumentStore
+from docflow_agent.outbound.testing.session_context import StoreBackedSessionDocumentStore
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
 from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 
@@ -34,7 +36,8 @@ def test_build_container_wires_testing_dependencies_by_default() -> None:
     assert isinstance(container.llm_gateway, StubDocumentLlmGateway)
     assert isinstance(container.pdf_client, OpenDataLoaderPdfClient)
     assert isinstance(container.chat_history_store, InMemoryChatHistoryStore)
-    assert isinstance(container.session_document_store, InMemorySessionDocumentStore)
+    assert isinstance(container.runtime_store, InMemoryStore)
+    assert isinstance(container.session_document_store, StoreBackedSessionDocumentStore)
     assert isinstance(container.workflow_run_store, InMemoryWorkflowRunStore)
     assert isinstance(container.vector_store, InMemoryVectorStore)
     assert isinstance(container.workflow_queue, InMemoryWorkflowQueue)

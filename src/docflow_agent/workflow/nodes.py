@@ -1,45 +1,13 @@
 from __future__ import annotations
 
-from typing import Literal, Protocol
+from typing import Literal
 
 from docflow_agent.ports.queue import WorkflowQueuePort
 from docflow_agent.ports.rdbms import WorkflowRunStore
 from docflow_agent.types.boundary.external import QueueMessage, WorkflowRunRecord
-from docflow_agent.types.value.results import UsecaseOutcome
+from docflow_agent.usecases.document_workflow import DocumentUsecaseBindings
 from docflow_agent.workflow.routes import get_human_decision, route_flow
 from docflow_agent.workflow.state import ArtifactKind, ArtifactRef, WorkflowState
-
-
-class DocumentWorkflowUsecases(Protocol):
-    def load_source(self, user_input: str) -> str:
-        ...
-
-    def parse_units(self, source_ref_id: str) -> list[str]:
-        ...
-
-    def categorize_units(self, unit_ref_ids: list[str]) -> list[str]:
-        ...
-
-    def combine_bundle(self, unit_ref_ids: list[str]) -> str:
-        ...
-
-    def analyze(self, bundle_ref_id: str) -> UsecaseOutcome:
-        ...
-
-    def filter_dataset(self, bundle_ref_id: str) -> str:
-        ...
-
-    def compose_mail(self, dataset_ref_id: str) -> str:
-        ...
-
-    def send_mail(self, draft_ref_id: str) -> UsecaseOutcome:
-        ...
-
-    def reject_send_mail(self, draft_ref_id: str | None) -> UsecaseOutcome:
-        ...
-
-    def handle_unknown(self, user_input: str) -> UsecaseOutcome:
-        ...
 
 
 ArtifactRefListKey = Literal["source_refs", "unit_refs", "bundle_refs", "dataset_refs", "output_refs"]
@@ -112,8 +80,8 @@ def select_flow_node(state: WorkflowState) -> WorkflowState:
     return state
 
 
-def load_source_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
-    source_ref_id = usecases.load_source(state["user_input"])
+def load_source_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+    source_ref_id = usecases["load_source"](state["user_input"])
     source_ref = _artifact_ref("source", source_ref_id)
     _append_artifact_ref(state, "source_refs", source_ref)
     state["selected_source_ref"] = source_ref
@@ -121,9 +89,9 @@ def load_source_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -
     return state
 
 
-def parse_units_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
+def parse_units_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
     source_ref_id = state["selected_source_ref"]["ref_id"]
-    unit_refs = [_artifact_ref("unit", ref_id) for ref_id in usecases.parse_units(source_ref_id)]
+    unit_refs = [_artifact_ref("unit", ref_id) for ref_id in usecases["parse_units"](source_ref_id)]
     for unit_ref in unit_refs:
         _append_artifact_ref(state, "unit_refs", unit_ref)
     if unit_refs:
@@ -132,12 +100,12 @@ def parse_units_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -
     return state
 
 
-def categorize_units_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
+def categorize_units_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
     parsed_unit_refs = [
         ref["ref_id"] for ref in state.get("unit_refs", []) if ref["kind"] == "unit"
     ]
     categorized_unit_refs = [
-        _artifact_ref("unit", ref_id) for ref_id in usecases.categorize_units(parsed_unit_refs)
+        _artifact_ref("unit", ref_id) for ref_id in usecases["categorize_units"](parsed_unit_refs)
     ]
     for unit_ref in categorized_unit_refs:
         _append_artifact_ref(state, "unit_refs", unit_ref)
@@ -147,20 +115,20 @@ def categorize_units_node(state: WorkflowState, usecases: DocumentWorkflowUsecas
     return state
 
 
-def combine_bundle_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
+def combine_bundle_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
     categorized_unit_ref_ids = [
         ref["ref_id"] for ref in state.get("unit_refs", [])[-2:] if ref["kind"] == "unit"
     ]
-    bundle_ref = _artifact_ref("bundle", usecases.combine_bundle(categorized_unit_ref_ids))
+    bundle_ref = _artifact_ref("bundle", usecases["combine_bundle"](categorized_unit_ref_ids))
     _append_artifact_ref(state, "bundle_refs", bundle_ref)
     state["selected_bundle_ref"] = bundle_ref
     state["current_step"] = "combine_bundle"
     return state
 
 
-def analyze_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
+def analyze_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
     bundle_ref_id = state["selected_bundle_ref"]["ref_id"]
-    outcome = usecases.analyze(bundle_ref_id)
+    outcome = usecases["analyze"](bundle_ref_id)
     analysis_ref = _artifact_ref("analysis", outcome.ref_id)
     _append_artifact_ref(state, "output_refs", analysis_ref)
     state["result"] = outcome.message
@@ -168,17 +136,17 @@ def analyze_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> Wo
     return state
 
 
-def filter_dataset_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
+def filter_dataset_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
     bundle_ref_id = state["selected_bundle_ref"]["ref_id"]
-    dataset_ref = _artifact_ref("dataset", usecases.filter_dataset(bundle_ref_id))
+    dataset_ref = _artifact_ref("dataset", usecases["filter_dataset"](bundle_ref_id))
     _append_artifact_ref(state, "dataset_refs", dataset_ref)
     state["current_step"] = "filter_dataset"
     return state
 
 
-def compose_mail_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
+def compose_mail_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
     dataset_ref_id = state["dataset_refs"][-1]["ref_id"]
-    draft_ref = _artifact_ref("draft", usecases.compose_mail(dataset_ref_id))
+    draft_ref = _artifact_ref("draft", usecases["compose_mail"](dataset_ref_id))
     _append_artifact_ref(state, "output_refs", draft_ref)
     state["current_step"] = "compose_mail"
     return state
@@ -186,7 +154,7 @@ def compose_mail_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) 
 
 def request_send_mail_approval_node(
     state: WorkflowState,
-    usecases: DocumentWorkflowUsecases,
+    usecases: DocumentUsecaseBindings,
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     del usecases
@@ -233,11 +201,11 @@ def request_send_mail_approval_node(
 
 def send_mail_node(
     state: WorkflowState,
-    usecases: DocumentWorkflowUsecases,
+    usecases: DocumentUsecaseBindings,
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     draft_ref_id = state["output_refs"][-1]["ref_id"]
-    outcome = usecases.send_mail(draft_ref_id)
+    outcome = usecases["send_mail"](draft_ref_id)
     result_ref = _artifact_ref("result", outcome.ref_id)
     _append_artifact_ref(state, "output_refs", result_ref)
     _enqueue_workflow_message(
@@ -254,11 +222,11 @@ def send_mail_node(
 
 def reject_send_mail_node(
     state: WorkflowState,
-    usecases: DocumentWorkflowUsecases,
+    usecases: DocumentUsecaseBindings,
     workflow_runtime: WorkflowRuntime,
 ) -> WorkflowState:
     draft_ref_id = state.get("output_refs", [])[-1]["ref_id"] if state.get("output_refs") else None
-    outcome = usecases.reject_send_mail(draft_ref_id)
+    outcome = usecases["reject_send_mail"](draft_ref_id)
     result_ref = _artifact_ref("result", outcome.ref_id)
     _append_artifact_ref(state, "output_refs", result_ref)
     _enqueue_workflow_message(
@@ -274,8 +242,8 @@ def reject_send_mail_node(
     return state
 
 
-def unknown_node(state: WorkflowState, usecases: DocumentWorkflowUsecases) -> WorkflowState:
-    outcome = usecases.handle_unknown(state["user_input"])
+def unknown_node(state: WorkflowState, usecases: DocumentUsecaseBindings) -> WorkflowState:
+    outcome = usecases["handle_unknown"](state["user_input"])
     result_ref = _artifact_ref("result", outcome.ref_id)
     _append_artifact_ref(state, "output_refs", result_ref)
     state["error"] = outcome.message

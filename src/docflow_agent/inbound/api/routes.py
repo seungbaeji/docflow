@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
 
+from docflow_agent.bootstrap import AppContainer
 from docflow_agent.config.prompt import (
     get_chat_system_prompt,
     get_document_agent_system_prompt,
@@ -32,8 +33,11 @@ from docflow_agent.types.boundary.api import (
     ProcessRequest,
     UploadResponse,
 )
-from docflow_agent.usecases.chat import ChatUsecase
-from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.usecases.chat import respond_in_chat
+from docflow_agent.usecases.document_workflow import (
+    DocumentUsecaseBindings,
+    bind_document_usecases,
+)
 from docflow_agent.workflow.document_workflow import (
     create_document_workflow,
     invoke_document_workflow,
@@ -41,9 +45,23 @@ from docflow_agent.workflow.document_workflow import (
 )
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
 from docflow_agent.workflow.nodes import WorkflowRuntime
-from docflow_agent.workflow.tools import build_document_agent_tools
+from docflow_agent.workflow.tools import (
+    bind_document_agent_tools,
+    DocumentAgentToolContext,
+)
 
 router = APIRouter()
+
+
+def _bind_document_functions(container: AppContainer) -> DocumentUsecaseBindings:
+    return bind_document_usecases(
+        artifact_repository=container.artifact_repository,
+        llm_gateway=container.llm_gateway,
+        workflow_run_store=container.workflow_run_store,
+        vector_store=container.vector_store,
+        pdf_client=container.pdf_client,
+        pdf_parser=container.pdf_parser,
+    )
 
 
 def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
@@ -122,14 +140,7 @@ def _sanitize_upload_name(file_name: str) -> str:
 def process(request: ProcessRequest, app_request: Request) -> dict[str, object]:
     try:
         container = app_request.app.state.container
-        document_usecases = RepositoryBackedDocumentUsecases(
-            artifact_repository=container.artifact_repository,
-            llm_gateway=container.llm_gateway,
-            workflow_run_store=container.workflow_run_store,
-            vector_store=container.vector_store,
-            pdf_client=container.pdf_client,
-            pdf_parser=container.pdf_parser,
-        )
+        document_usecases = _bind_document_functions(container)
         workflow_runtime = WorkflowRuntime(
             workflow_run_store=container.workflow_run_store,
             workflow_queue=container.workflow_queue,
@@ -180,16 +191,9 @@ async def upload_document(app_request: Request) -> UploadResponse:
     stored_path = upload_dir / stored_name
     stored_path.write_bytes(raw_file)
 
-    document_usecases = RepositoryBackedDocumentUsecases(
-        artifact_repository=container.artifact_repository,
-        llm_gateway=container.llm_gateway,
-        workflow_run_store=container.workflow_run_store,
-        vector_store=container.vector_store,
-        pdf_client=container.pdf_client,
-        pdf_parser=container.pdf_parser,
-    )
-    source_ref_id = document_usecases.register_uploaded_source(
-        file_info=FileInfo(
+    document_usecases = _bind_document_functions(container)
+    source_ref_id = document_usecases["register_uploaded_source"](
+        FileInfo(
             name=file_name,
             path=str(stored_path.resolve()),
             content_type=content_type,
@@ -213,50 +217,41 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
         container = app_request.app.state.container
         session_id = request.session_id or str(uuid4())
         current_source_ref = container.session_document_store.get_current_source_ref(session_id)
-        document_usecases = RepositoryBackedDocumentUsecases(
-            artifact_repository=container.artifact_repository,
-            llm_gateway=container.llm_gateway,
-            workflow_run_store=container.workflow_run_store,
-            vector_store=container.vector_store,
-            pdf_client=container.pdf_client,
-            pdf_parser=container.pdf_parser,
-        )
+        document_usecases = _bind_document_functions(container)
 
         if current_source_ref is not None and _requires_document_agent(request.message):
             document_agent_runtime = DocumentAgentRuntime(
                 llm_gateway=container.llm_gateway,
-                tools=build_document_agent_tools(
-                    session_id=session_id,
-                    session_document_store=container.session_document_store,
-                    document_usecases=document_usecases,
+                tools=bind_document_agent_tools(
+                    build_document_payload=document_usecases["build_document_payload"],
+                    summarize_source_ref=document_usecases["summarize_source_ref"],
                 ),
+                tool_context=DocumentAgentToolContext(
+                    session_id=session_id,
+                ),
+                runtime_store=container.runtime_store,
                 system_prompt=get_document_agent_system_prompt(),
             )
             try:
-                message = document_agent_runtime.run(
-                    prompt=request.message,
-                    session_id=session_id,
-                ).answer
+                message = document_agent_runtime.run(prompt=request.message).answer
             except DocumentAgentRuntimeError:
                 if _requires_document_processing(request.message):
-                    message = document_usecases.summarize_source_ref(current_source_ref)
+                    message = document_usecases["summarize_source_ref"](current_source_ref)
                 else:
-                    message = document_usecases.answer_question_about_source_ref(
+                    message = document_usecases["answer_question_about_source_ref"](
                         current_source_ref,
                         request.message,
                     )
         else:
             document_context = None
             if current_source_ref is not None:
-                document_context = document_usecases.build_document_context(current_source_ref)
-            chat_usecase = ChatUsecase(
+                document_context = document_usecases["build_document_context"](current_source_ref)
+            message = respond_in_chat(
+                message=request.message,
+                session_id=session_id,
                 llm_gateway=container.llm_gateway,
                 chat_history_store=container.chat_history_store,
                 system_prompt=get_chat_system_prompt(),
-            )
-            message = chat_usecase.respond(
-                message=request.message,
-                session_id=session_id,
                 document_context=document_context,
             )
     except LlmQuotaExceededError as exc:

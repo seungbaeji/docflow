@@ -9,9 +9,12 @@ from docflow_agent.config.settings import get_settings
 from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.usecases.document_workflow import bind_document_usecases
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
-from docflow_agent.workflow.tools import build_document_agent_tools
+from docflow_agent.workflow.tools import (
+    bind_document_agent_tools,
+    DocumentAgentToolContext,
+)
 
 
 def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
@@ -48,7 +51,7 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
         pytest.skip("Configure a real llm provider before running the smoke test.")
 
     container = build_container(settings=settings, pdf_parser=_fake_pdf_parser)
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=container.artifact_repository,
         llm_gateway=container.llm_gateway,
         workflow_run_store=container.workflow_run_store,
@@ -58,7 +61,7 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
     )
     source_path = tmp_path / "statement.pdf"
     source_path.write_bytes(b"%PDF-1.7 fake")
-    source_ref_id = usecases.register_uploaded_source(
+    source_ref_id = usecases["register_uploaded_source"](
         FileInfo(
             name="statement.pdf",
             path=str(source_path),
@@ -69,15 +72,18 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
 
     runtime = DocumentAgentRuntime(
         llm_gateway=container.llm_gateway,
-        tools=build_document_agent_tools(
-            session_id="smoke-session",
-            session_document_store=container.session_document_store,
-            document_usecases=usecases,
+        tools=bind_document_agent_tools(
+            build_document_payload=usecases["build_document_payload"],
+            summarize_source_ref=usecases["summarize_source_ref"],
         ),
+        tool_context=DocumentAgentToolContext(
+            session_id="smoke-session",
+        ),
+        runtime_store=container.runtime_store,
         system_prompt=get_document_agent_system_prompt(),
     )
 
-    result = runtime.run(prompt="해당 문서를 분석해 줘", session_id="smoke-session")
+    result = runtime.run(prompt="해당 문서를 분석해 줘")
 
     assert result.answer.strip()
     assert result.trace.tool_calls

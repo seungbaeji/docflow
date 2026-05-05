@@ -1,17 +1,22 @@
 from pathlib import Path
 
+from langgraph.store.memory import InMemoryStore
+
 from docflow_agent.config.prompt import get_document_agent_system_prompt
 from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient
 from docflow_agent.outbound.testing.llm import StubDocumentLlmGateway
 from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository import (
     InMemoryArtifactRepository,
 )
-from docflow_agent.outbound.testing.session_context import InMemorySessionDocumentStore
+from docflow_agent.outbound.testing.session_context import StoreBackedSessionDocumentStore
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.usecases.document_workflow import bind_document_usecases
 from docflow_agent.workflow.document_agent import DocumentAgentRuntime
-from docflow_agent.workflow.tools import build_document_agent_tools
+from docflow_agent.workflow.tools import (
+    bind_document_agent_tools,
+    DocumentAgentToolContext,
+)
 
 
 def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> PdfDocument:
@@ -40,8 +45,9 @@ def _fake_pdf_parser(client: OpenDataLoaderPdfClient, file_info: FileInfo) -> Pd
 
 def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> DocumentAgentRuntime:
     repository = InMemoryArtifactRepository()
-    session_document_store = InMemorySessionDocumentStore()
-    usecases = RepositoryBackedDocumentUsecases(
+    runtime_store = InMemoryStore()
+    session_document_store = StoreBackedSessionDocumentStore(store=runtime_store)
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         llm_gateway=llm_gateway,
         pdf_client=OpenDataLoaderPdfClient(),
@@ -49,7 +55,7 @@ def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> Docum
     )
     source_path = tmp_path / "statement.pdf"
     source_path.write_bytes(b"%PDF-1.7 fake")
-    source_ref_id = usecases.register_uploaded_source(
+    source_ref_id = usecases["register_uploaded_source"](
         FileInfo(
             name="statement.pdf",
             path=str(source_path),
@@ -59,11 +65,14 @@ def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> Docum
     session_document_store.set_current_source_ref("session-001", source_ref_id)
     return DocumentAgentRuntime(
         llm_gateway=llm_gateway,
-        tools=build_document_agent_tools(
-            session_id="session-001",
-            session_document_store=session_document_store,
-            document_usecases=usecases,
+        tools=bind_document_agent_tools(
+            build_document_payload=usecases["build_document_payload"],
+            summarize_source_ref=usecases["summarize_source_ref"],
         ),
+        tool_context=DocumentAgentToolContext(
+            session_id="session-001",
+        ),
+        runtime_store=runtime_store,
         system_prompt=get_document_agent_system_prompt(),
     )
 
@@ -79,7 +88,7 @@ def test_document_agent_runtime_runs_summary_trajectory(tmp_path: Path) -> None:
     )
     runtime = _build_runtime(tmp_path, llm_gateway)
 
-    result = runtime.run(prompt="해당 문서를 분석해 줘", session_id="session-001")
+    result = runtime.run(prompt="해당 문서를 분석해 줘")
 
     assert result.answer == "문서 분석 결과: 간이지급명세서와 총지급액 120000원입니다."
     assert [call.tool_name for call in result.trace.tool_calls] == [
@@ -100,7 +109,7 @@ def test_document_agent_runtime_runs_question_trajectory(tmp_path: Path) -> None
     )
     runtime = _build_runtime(tmp_path, llm_gateway)
 
-    result = runtime.run(prompt="이 문서의 금액은 뭐야?", session_id="session-001")
+    result = runtime.run(prompt="이 문서의 금액은 뭐야?")
 
     assert result.answer == "이 문서의 총지급액은 120000원입니다."
     assert [call.tool_name for call in result.trace.tool_calls] == [

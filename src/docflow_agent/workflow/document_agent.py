@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import asdict, is_dataclass
 import json
 import re
+from typing import Any
 
-from langchain_core.tools import BaseTool
+from langchain.tools import BaseTool, ToolRuntime
+from langgraph.store.base import BaseStore
 
 from docflow_agent.errors import DocumentAgentRuntimeError
 from docflow_agent.ports.llm import DocumentLlmPort
@@ -13,6 +16,7 @@ from docflow_agent.types.value.document_agent import (
     DocumentAgentTrace,
     DocumentAgentToolTrace,
 )
+from docflow_agent.workflow.tools import DocumentAgentToolContext
 
 
 class DocumentAgentRuntime:
@@ -21,15 +25,19 @@ class DocumentAgentRuntime:
         *,
         llm_gateway: DocumentLlmPort,
         tools: dict[str, BaseTool],
+        tool_context: DocumentAgentToolContext,
+        runtime_store: BaseStore | None,
         system_prompt: str,
         max_steps: int = 4,
     ) -> None:
         self.llm_gateway = llm_gateway
         self.tools = tools
+        self.tool_context = tool_context
+        self.runtime_store = runtime_store
         self.system_prompt = system_prompt
         self.max_steps = max_steps
 
-    def run(self, *, prompt: str, session_id: str) -> DocumentAgentResult:
+    def run(self, *, prompt: str) -> DocumentAgentResult:
         history: list[ChatTurn] = []
         tool_traces: list[DocumentAgentToolTrace] = []
         current_message = prompt
@@ -67,17 +75,21 @@ class DocumentAgentRuntime:
             tool_arguments = envelope["arguments"]
             if not isinstance(tool_arguments, dict):
                 raise DocumentAgentRuntimeError("tool_call envelope produced non-object arguments")
-            tool_result = tool.invoke(tool_arguments)
+            tool_result = self._invoke_tool(
+                tool_name=tool_name,
+                tool_arguments=tool_arguments,
+            )
+            serialized_tool_result = _serialize_tool_result(tool_result)
             tool_traces.append(
                 DocumentAgentToolTrace(
                     tool_name=tool_name,
                     tool_input_summary=_summarize_json(tool_arguments),
-                    tool_output_summary=_summarize_json(tool_result),
+                    tool_output_summary=_summarize_json(serialized_tool_result),
                 )
             )
             current_message = (
                 "Tool result:\n"
-                f"{json.dumps({'tool': tool_name, 'result': tool_result}, ensure_ascii=False, sort_keys=True)}\n"
+                f"{json.dumps({'tool': tool_name, 'result': serialized_tool_result}, ensure_ascii=False, sort_keys=True)}\n"
                 "Choose the next tool or provide the final answer."
             )
 
@@ -89,6 +101,25 @@ class DocumentAgentRuntime:
             for tool in self.tools.values()
         )
         return f"{self.system_prompt}\n\nAvailable tools:\n{tool_lines}"
+
+    def _invoke_tool(
+        self,
+        *,
+        tool_name: str,
+        tool_arguments: dict[str, object],
+    ) -> object:
+        tool_call_id = f"tool-call-{tool_name}"
+        tool_runtime: ToolRuntime[DocumentAgentToolContext, dict[str, list[object]]] = ToolRuntime(
+            state={"messages": []},
+            context=self.tool_context,
+            config={},
+            stream_writer=lambda _value: None,
+            tool_call_id=tool_call_id,
+            store=self.runtime_store,
+        )
+        invoke_payload = dict(tool_arguments)
+        invoke_payload["runtime"] = tool_runtime
+        return self.tools[tool_name].invoke(invoke_payload)
 
 
 def _parse_agent_envelope(raw_response: str) -> dict[str, object]:
@@ -138,3 +169,13 @@ def _strip_code_fence(value: str) -> str:
 
 def _summarize_json(payload: dict[str, object]) -> str:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)[:800]
+
+
+def _serialize_tool_result(value: object) -> dict[str, object]:
+    if is_dataclass(value):
+        serialized = asdict(value)  # type: ignore[arg-type]
+        if isinstance(serialized, dict):
+            return serialized
+    if isinstance(value, dict):
+        return value
+    raise DocumentAgentRuntimeError("tool result must be a dataclass value object or a dict")

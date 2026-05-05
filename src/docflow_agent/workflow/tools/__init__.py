@@ -1,5 +1,9 @@
-from docflow_agent.workflow.tools.document import build_document_agent_tools
+from docflow_agent.workflow.tools.document import (
+    bind_document_agent_tools,
+    DocumentAgentToolContext,
+)
 
 __all__ = [
-    "build_document_agent_tools",
+    "bind_document_agent_tools",
+    "DocumentAgentToolContext",
 ]

@@ -7,13 +7,13 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
     InMemoryArtifactRepository,
 )
 from docflow_agent.outbound.testing.vector_store import InMemoryVectorStore
-from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.usecases.document_workflow import bind_document_usecases
 
 
 def test_document_to_mail_stops_for_pending_approval() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=RepositoryBackedDocumentUsecases(repository),
+        usecases=bind_document_usecases(artifact_repository=repository),
         artifact_repository=repository,
     )
 
@@ -29,7 +29,7 @@ def test_document_to_mail_stops_for_pending_approval() -> None:
 def test_document_to_mail_sends_mail_after_approval() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=RepositoryBackedDocumentUsecases(repository),
+        usecases=bind_document_usecases(artifact_repository=repository),
         artifact_repository=repository,
     )
 
@@ -57,7 +57,7 @@ def test_document_to_mail_sends_mail_after_approval() -> None:
 def test_document_to_mail_rejects_mail_safely() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=RepositoryBackedDocumentUsecases(repository),
+        usecases=bind_document_usecases(artifact_repository=repository),
         artifact_repository=repository,
     )
 
@@ -86,7 +86,7 @@ def test_document_to_mail_workflow_uses_port_backed_usecase_dependencies() -> No
     repository = InMemoryArtifactRepository()
     workflow_run_store = InMemoryWorkflowRunStore()
     queue = InMemoryWorkflowQueue()
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         llm_gateway=StubDocumentLlmGateway(summary_response="Workflow-generated mail body"),
         workflow_run_store=workflow_run_store,
@@ -131,7 +131,7 @@ def test_document_to_mail_workflow_records_pending_approval_and_enqueues_request
     repository = InMemoryArtifactRepository()
     workflow_run_store = InMemoryWorkflowRunStore()
     queue = InMemoryWorkflowQueue()
-    usecases = RepositoryBackedDocumentUsecases(
+    usecases = bind_document_usecases(
         artifact_repository=repository,
         workflow_run_store=workflow_run_store,
         vector_store=InMemoryVectorStore(),

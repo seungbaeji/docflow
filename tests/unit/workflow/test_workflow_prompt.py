@@ -11,13 +11,13 @@ from docflow_agent.outbound.testing.repositories.in_memory_artifact_repository i
 )
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
-from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+from docflow_agent.usecases.document_workflow import bind_document_usecases
 
 
 def test_prompt_routes_to_document_process_and_creates_artifact_refs() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=RepositoryBackedDocumentUsecases(repository),
+        usecases=bind_document_usecases(artifact_repository=repository),
         artifact_repository=repository,
     )
 
@@ -35,7 +35,7 @@ def test_prompt_routes_to_document_process_and_creates_artifact_refs() -> None:
 def test_workflow_facade_accepts_human_decisions_and_serializes_state() -> None:
     repository = InMemoryArtifactRepository()
     workflow = create_document_workflow(
-        usecases=RepositoryBackedDocumentUsecases(repository),
+        usecases=bind_document_usecases(artifact_repository=repository),
         artifact_repository=repository,
     )
 
@@ -85,8 +85,8 @@ def test_prompt_with_pdf_path_routes_through_pdf_parsing(tmp_path: Path) -> None
         )
 
     workflow = create_document_workflow(
-        usecases=RepositoryBackedDocumentUsecases(
-            repository,
+        usecases=bind_document_usecases(
+            artifact_repository=repository,
             pdf_client=OpenDataLoaderPdfClient(),
             pdf_parser=fake_pdf_parser,
         ),
