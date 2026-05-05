@@ -4,6 +4,13 @@ from docflow_agent.types.value.document import DocumentPayload
 
 
 @dataclass(frozen=True)
+class DocumentAgentToolContext:
+    source_ref_id: str
+    document_payload: DocumentPayload
+    document_summary: str
+
+
+@dataclass(frozen=True)
 class CurrentDocumentMetadataResult:
     source_ref_id: str
     source_type: str

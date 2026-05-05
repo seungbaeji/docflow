@@ -12,11 +12,11 @@ from docflow_agent.errors import DocumentAgentRuntimeError
 from docflow_agent.ports.llm import DocumentLlmPort
 from docflow_agent.types.value.chat import ChatTurn
 from docflow_agent.types.value.document_agent import (
+    DocumentAgentToolContext,
     DocumentAgentResult,
     DocumentAgentTrace,
     DocumentAgentToolTrace,
 )
-from docflow_agent.workflow.tools import DocumentAgentToolContext
 
 
 class DocumentAgentRuntime:
@@ -24,14 +24,15 @@ class DocumentAgentRuntime:
         self,
         *,
         llm_gateway: DocumentLlmPort,
-        tools: dict[str, BaseTool],
+        tools: list[BaseTool] | tuple[BaseTool, ...],
         tool_context: DocumentAgentToolContext,
         runtime_store: BaseStore | None,
         system_prompt: str,
         max_steps: int = 4,
     ) -> None:
         self.llm_gateway = llm_gateway
-        self.tools = tools
+        self.tools = list(tools)
+        self.tools_by_name = {tool.name: tool for tool in self.tools}
         self.tool_context = tool_context
         self.runtime_store = runtime_store
         self.system_prompt = system_prompt
@@ -69,7 +70,7 @@ class DocumentAgentRuntime:
             tool_name = envelope["tool"]
             if not isinstance(tool_name, str):
                 raise DocumentAgentRuntimeError("tool_call envelope produced a non-string tool name")
-            tool = self.tools.get(tool_name)
+            tool = self.tools_by_name.get(tool_name)
             if tool is None:
                 raise DocumentAgentRuntimeError(f"unknown tool requested: {tool_name}")
             tool_arguments = envelope["arguments"]
@@ -98,7 +99,7 @@ class DocumentAgentRuntime:
     def _build_system_prompt(self) -> str:
         tool_lines = "\n".join(
             f"- {tool.name}: {tool.description}"
-            for tool in self.tools.values()
+            for tool in self.tools
         )
         return f"{self.system_prompt}\n\nAvailable tools:\n{tool_lines}"
 
@@ -119,7 +120,7 @@ class DocumentAgentRuntime:
         )
         invoke_payload = dict(tool_arguments)
         invoke_payload["runtime"] = tool_runtime
-        return self.tools[tool_name].invoke(invoke_payload)
+        return self.tools_by_name[tool_name].invoke(invoke_payload)
 
 
 def _parse_agent_envelope(raw_response: str) -> dict[str, object]:
