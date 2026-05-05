@@ -10,10 +10,10 @@ from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument
 from docflow_agent.types.value.document import DocumentPayload
 from docflow_agent.usecases.document import (
-    build_document_context,
-    build_document_payload as build_document_payload_from_parts,
-    build_document_question_payload,
-    render_document_summary,
+    build_context,
+    build_payload as build_payload_from_parts,
+    build_question_payload,
+    render_summary,
 )
 from docflow_agent.workflow.document.parse import parse_units
 from docflow_agent.workflow.document.support import (
@@ -26,7 +26,7 @@ from docflow_agent.workflow.document.support import (
 PdfParser = Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument]
 
 
-def build_document_payload(
+def build_payload(
     artifact_repository: ArtifactRepository,
     *,
     source_ref_id: str,
@@ -48,7 +48,7 @@ def build_document_payload(
         filters={"source_ref_id": source_ref_id, "stage": "analyzed"},
     )
     analysis_value = artifact_repository.load("analysis", analyzed_refs[-1]) if analyzed_refs else None
-    return build_document_payload_from_parts(
+    return build_payload_from_parts(
         source_ref_id=source_ref_id,
         source=source,
         parsed_document=parsed_document,
@@ -58,15 +58,15 @@ def build_document_payload(
     )
 
 
-def build_document_context_by_ref(
+def build_context_by_ref(
     artifact_repository: ArtifactRepository,
     *,
     source_ref_id: str,
     pdf_client: OpenDataLoaderPdfClient | None,
     pdf_parser: PdfParser,
 ) -> str:
-    return build_document_context(
-        build_document_payload(
+    return build_context(
+        build_payload(
             artifact_repository,
             source_ref_id=source_ref_id,
             pdf_client=pdf_client,
@@ -75,15 +75,15 @@ def build_document_context_by_ref(
     )
 
 
-def summarize_source_ref(
+def summarize_ref(
     artifact_repository: ArtifactRepository,
     *,
     source_ref_id: str,
     pdf_client: OpenDataLoaderPdfClient | None,
     pdf_parser: PdfParser,
 ) -> str:
-    return render_document_summary(
-        build_document_payload(
+    return render_summary(
+        build_payload(
             artifact_repository,
             source_ref_id=source_ref_id,
             pdf_client=pdf_client,
@@ -92,7 +92,7 @@ def summarize_source_ref(
     )
 
 
-def answer_question_about_source_ref(
+def answer_question_about_ref(
     artifact_repository: ArtifactRepository,
     *,
     source_ref_id: str,
@@ -101,15 +101,15 @@ def answer_question_about_source_ref(
     pdf_client: OpenDataLoaderPdfClient | None,
     pdf_parser: PdfParser,
 ) -> str:
-    payload = build_document_payload(
+    payload = build_payload(
         artifact_repository,
         source_ref_id=source_ref_id,
         pdf_client=pdf_client,
         pdf_parser=pdf_parser,
     )
     if llm_gateway is None:
-        return render_document_summary(payload)
-    question_payload = build_document_question_payload(question, payload)
+        return render_summary(payload)
+    question_payload = build_question_payload(question, payload)
     return llm_gateway.ask_document_question(
         question=question_payload.question,
         payload=asdict(question_payload.document),

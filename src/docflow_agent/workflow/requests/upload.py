@@ -8,7 +8,7 @@ from docflow_agent.types.boundary.api import UploadResponse
 from docflow_agent.workflow.document import source as document_source
 
 
-def stage_uploaded_document(
+def stage_upload(
     *,
     container: AppContainer,
     session_id: str | None,

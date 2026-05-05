@@ -4,10 +4,10 @@ from docflow_agent.usecases.document.analyze import (
     combine_unit_payloads,
 )
 from docflow_agent.usecases.document.chat import (
-    build_document_context,
-    build_document_payload,
-    build_document_question_payload,
-    render_document_summary,
+    build_context,
+    build_payload,
+    build_question_payload,
+    render_summary,
 )
 from docflow_agent.usecases.document.mail import (
     build_dataset_payload,
@@ -23,9 +23,9 @@ from docflow_agent.usecases.document.source import (
 __all__ = [
     "analyze_bundle_payload",
     "build_dataset_payload",
-    "build_document_context",
-    "build_document_payload",
-    "build_document_question_payload",
+    "build_context",
+    "build_payload",
+    "build_question_payload",
     "build_mail_draft_payload",
     "build_mail_result_payload",
     "build_source_payload_from_prompt",
@@ -33,5 +33,5 @@ __all__ = [
     "categorize_unit_payloads",
     "combine_unit_payloads",
     "parse_source_payload",
-    "render_document_summary",
+    "render_summary",
 ]

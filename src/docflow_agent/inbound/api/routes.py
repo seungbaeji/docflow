@@ -26,10 +26,10 @@ from docflow_agent.types.boundary.api import (
     ProcessRequest,
     UploadResponse,
 )
-from docflow_agent.workflow.document_requests import (
-    process_document_request,
-    respond_to_chat_request,
-    stage_uploaded_document,
+from docflow_agent.workflow.requests import (
+    process_request,
+    respond_to_chat,
+    stage_upload,
 )
 from docflow_agent.workflow.document_workflow import workflow_state_to_response
 
@@ -61,7 +61,7 @@ def _sanitize_upload_name(file_name: str) -> str:
 def process(request: ProcessRequest, app_request: Request) -> dict[str, object]:
     try:
         container = app_request.app.state.container
-        state = process_document_request(
+        state = process_request(
             container=container,
             user_input=request.user_input,
             human_decisions=request.to_workflow_human_decisions(),
@@ -92,7 +92,7 @@ async def upload_document(app_request: Request) -> UploadResponse:
         raise HTTPException(status_code=400, detail="Upload body must not be empty.")
 
     container = app_request.app.state.container
-    return stage_uploaded_document(
+    return stage_upload(
         container=container,
         session_id=app_request.headers.get("X-Session-Id"),
         file_name=_sanitize_upload_name(_decode_upload_name(app_request.headers)),
@@ -106,7 +106,7 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
     try:
         container = app_request.app.state.container
         session_id = request.session_id or str(uuid4())
-        message = respond_to_chat_request(
+        message = respond_to_chat(
             container=container,
             session_id=session_id,
             message=request.message,

@@ -67,8 +67,8 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
     )
     source_ref_id = usecases["source_from_upload"](upload_id)
     container.session_document_store.set_current_source_ref("smoke-session", source_ref_id)
-    document_payload = usecases["build_document_payload"](source_ref_id)
-    document_summary = usecases["summarize_source_ref"](source_ref_id)
+    document_payload = usecases["build_payload"](source_ref_id)
+    document_summary = usecases["summarize_ref"](source_ref_id)
 
     runtime = DocumentAgentRuntime(
         llm_gateway=container.llm_gateway,

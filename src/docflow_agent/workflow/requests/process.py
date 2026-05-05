@@ -12,7 +12,7 @@ from docflow_agent.workflow.nodes import WorkflowRuntime
 from docflow_agent.workflow.state import HumanDecision, WorkflowState
 
 
-def process_document_request(
+def process_request(
     *,
     container: AppContainer,
     user_input: str,

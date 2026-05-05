@@ -137,7 +137,7 @@ def test_parse_units_uses_pdf_adapter_for_pdf_source(tmp_path: Path) -> None:
     assert parsed_document["file_name"] == "invoice.pdf"
 
 
-def test_summarize_source_ref_returns_human_readable_summary(tmp_path: Path) -> None:
+def test_summarize_ref_returns_human_readable_summary(tmp_path: Path) -> None:
     repository = InMemoryArtifactRepository()
     source_path = tmp_path / "statement.pdf"
     source_path.write_bytes(b"%PDF-1.7 fake")
@@ -166,7 +166,7 @@ def test_summarize_source_ref_returns_human_readable_summary(tmp_path: Path) -> 
     )
 
     source_ref_id = usecases["load_source"](f"이 PDF 파일을 분석해줘 {source_path}")
-    summary = usecases["summarize_source_ref"](source_ref_id)
+    summary = usecases["summarize_ref"](source_ref_id)
 
     assert "문서 분석을 완료했습니다." in summary
     assert "- 문서 유형: pdf" in summary
@@ -175,7 +175,7 @@ def test_summarize_source_ref_returns_human_readable_summary(tmp_path: Path) -> 
     assert "Total amount: 120000 KRW" in summary
 
 
-def test_answer_question_about_source_ref_uses_full_document_payload(tmp_path: Path) -> None:
+def test_answer_question_about_ref_uses_full_payload(tmp_path: Path) -> None:
     repository = InMemoryArtifactRepository()
     llm_gateway = StubDocumentLlmGateway(answer_response="질문 응답")
     source_path = tmp_path / "statement.pdf"
@@ -207,7 +207,7 @@ def test_answer_question_about_source_ref_uses_full_document_payload(tmp_path: P
     )
 
     source_ref_id = usecases["load_source"](f"이 PDF 파일을 분석해줘 {source_path}")
-    answer = usecases["answer_question_about_source_ref"](source_ref_id, "전체 내용을 설명해 줘")
+    answer = usecases["answer_question_about_ref"](source_ref_id, "전체 내용을 설명해 줘")
 
     assert answer == "질문 응답"
     assert llm_gateway.asked_questions

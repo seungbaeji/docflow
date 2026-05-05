@@ -31,10 +31,10 @@ class DocumentWorkflowFunctionSet(TypedDict):
     send_mail: Callable[[str], UsecaseOutcome]
     reject_send_mail: Callable[[str | None], UsecaseOutcome]
     handle_unknown: Callable[[str], UsecaseOutcome]
-    build_document_payload: Callable[[str], DocumentPayload]
-    build_document_context: Callable[[str], str]
-    summarize_source_ref: Callable[[str], str]
-    answer_question_about_source_ref: Callable[[str, str], str]
+    build_payload: Callable[[str], DocumentPayload]
+    build_context: Callable[[str], str]
+    summarize_ref: Callable[[str], str]
+    answer_question_about_ref: Callable[[str, str], str]
 
 
 class DocumentWorkflowKwargs(TypedDict):
@@ -119,25 +119,25 @@ def build_document_workflow_functions(
             user_input=user_input,
             workflow_run_store=workflow_run_store,
         ),
-        "build_document_payload": lambda source_ref_id: document_chat.build_document_payload(
+        "build_payload": lambda source_ref_id: document_chat.build_payload(
             artifact_repository,
             source_ref_id=source_ref_id,
             pdf_client=pdf_client,
             pdf_parser=pdf_parser,
         ),
-        "build_document_context": lambda source_ref_id: document_chat.build_document_context_by_ref(
+        "build_context": lambda source_ref_id: document_chat.build_context_by_ref(
             artifact_repository,
             source_ref_id=source_ref_id,
             pdf_client=pdf_client,
             pdf_parser=pdf_parser,
         ),
-        "summarize_source_ref": lambda source_ref_id: document_chat.summarize_source_ref(
+        "summarize_ref": lambda source_ref_id: document_chat.summarize_ref(
             artifact_repository,
             source_ref_id=source_ref_id,
             pdf_client=pdf_client,
             pdf_parser=pdf_parser,
         ),
-        "answer_question_about_source_ref": lambda source_ref_id, question: document_chat.answer_question_about_source_ref(
+        "answer_question_about_ref": lambda source_ref_id, question: document_chat.answer_question_about_ref(
             artifact_repository,
             source_ref_id=source_ref_id,
             question=question,

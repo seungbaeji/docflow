@@ -10,7 +10,7 @@ from docflow_agent.types.value.document import (
 )
 
 
-def build_document_payload(
+def build_payload(
     *,
     source_ref_id: str,
     source: SourcePayload,
@@ -46,7 +46,7 @@ def build_document_payload(
     )
 
 
-def build_document_context(payload: DocumentPayload) -> str:
+def build_context(payload: DocumentPayload) -> str:
     return "\n".join(
         [
             f"source_type={payload.source_type}",
@@ -60,7 +60,7 @@ def build_document_context(payload: DocumentPayload) -> str:
     )
 
 
-def render_document_summary(payload: DocumentPayload) -> str:
+def render_summary(payload: DocumentPayload) -> str:
     preview_items = [f"- {summary}" for summary in payload.unit_summaries if summary.strip()]
     preview_text = "\n".join(preview_items) if preview_items else "- 추출된 본문이 없습니다."
     page_count_line = (
@@ -83,7 +83,7 @@ def render_document_summary(payload: DocumentPayload) -> str:
     )
 
 
-def build_document_question_payload(
+def build_question_payload(
     question: str,
     payload: DocumentPayload,
 ) -> DocumentQuestionPayload:

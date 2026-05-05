@@ -58,8 +58,8 @@ def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> Docum
         len(b"%PDF-1.7 fake"),
     )
     source_ref_id = usecases["source_from_upload"](upload_id)
-    document_payload = usecases["build_document_payload"](source_ref_id)
-    document_summary = usecases["summarize_source_ref"](source_ref_id)
+    document_payload = usecases["build_payload"](source_ref_id)
+    document_summary = usecases["summarize_ref"](source_ref_id)
     return DocumentAgentRuntime(
         llm_gateway=llm_gateway,
         tools=DOCUMENT_AGENT_TOOLS,

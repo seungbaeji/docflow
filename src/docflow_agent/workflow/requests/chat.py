@@ -19,7 +19,7 @@ from docflow_agent.workflow.document_chat_workflow import (
 )
 
 
-def respond_to_chat_request(
+def respond_to_chat(
     *,
     container: AppContainer,
     session_id: str,
@@ -65,13 +65,13 @@ def respond_to_chat_request(
             message=message,
         )
         source_ref_id = prep_state["source_ref_id"]
-        document_payload = document_chat.build_document_payload(
+        document_payload = document_chat.build_payload(
             container.artifact_repository,
             source_ref_id=source_ref_id,
             pdf_client=container.pdf_client,
             pdf_parser=container.pdf_parser,
         )
-        document_summary = document_chat.summarize_source_ref(
+        document_summary = document_chat.summarize_ref(
             container.artifact_repository,
             source_ref_id=source_ref_id,
             pdf_client=container.pdf_client,
@@ -93,7 +93,7 @@ def respond_to_chat_request(
         except DocumentAgentRuntimeError:
             if _requires_document_processing(message):
                 return document_summary
-            return document_chat.answer_question_about_source_ref(
+            return document_chat.answer_question_about_ref(
                 container.artifact_repository,
                 source_ref_id=source_ref_id,
                 question=message,
@@ -104,7 +104,7 @@ def respond_to_chat_request(
 
     document_context = None
     if current_source_ref is not None:
-        document_context = document_chat.build_document_context_by_ref(
+        document_context = document_chat.build_context_by_ref(
             container.artifact_repository,
             source_ref_id=current_source_ref,
             pdf_client=container.pdf_client,
