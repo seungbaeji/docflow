@@ -105,9 +105,6 @@ pytest
 - `docflow-api`: FastAPI 서버 실행
 - `docflow-ui`: Streamlit UI 실행
 - `docflow-workflow`: prompt 기반 workflow 실행
-- `docflow-smoke`: 승인까지 포함한 smoke workflow 실행
-- `docflow-dev`: 개발 요약 출력
-- `docflow-docs`: 아키텍처 요약 출력
 
 예시:
 
@@ -116,7 +113,6 @@ uv run docflow-api
 uv run docflow-ui
 uv run docflow-workflow "엑셀 문서를 분석해줘"
 uv run docflow-workflow "엑셀에서 미정산 건을 찾아 메일로 보내줘" --approve-send-mail approve
-uv run docflow-smoke
 ```
 
 기본 API 주소는 `http://127.0.0.1:8000`입니다. 설정은 `.env` 또는 environment variable로 주입할 수 있고, 예를 들면 `DOCFLOW_AGENT_API__PORT=8010`처럼 바꿀 수 있습니다.

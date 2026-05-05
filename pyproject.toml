@@ -29,9 +29,6 @@ docs = [
 docflow-api = "docflow_agent.entrypoints.api:main"
 docflow-ui = "docflow_agent.entrypoints.ui:main"
 docflow-workflow = "docflow_agent.entrypoints.workflow:main"
-docflow-smoke = "docflow_agent.entrypoints.smoke:main"
-docflow-dev = "docflow_agent.entrypoints.dev:main"
-docflow-docs = "docflow_agent.entrypoints.docs:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]
