@@ -13,6 +13,7 @@ from docflow_agent.errors.llm import (
 )
 from docflow_agent.errors.outbound import (
     DatabaseIntegrationError,
+    EmptyPdfOutputError,
     MailIntegrationError,
     MissingPdfDependencyError,
     OcrIntegrationError,
@@ -32,6 +33,7 @@ __all__ = [
     "DatabaseIntegrationError",
     "DocumentAgentRuntimeError",
     "DocflowError",
+    "EmptyPdfOutputError",
     "EcmError",
     "EcmRequestError",
     "EcmResponseError",

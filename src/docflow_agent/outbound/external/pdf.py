@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from docflow_agent.errors import MissingPdfDependencyError, PdfIntegrationError
+from docflow_agent.errors import EmptyPdfOutputError, MissingPdfDependencyError, PdfIntegrationError
 from docflow_agent.types.boundary.common import FileInfo
 from docflow_agent.types.boundary.external import PdfDocument, PdfElement
 
@@ -76,7 +76,7 @@ def _load_pdf_outputs(file_info: FileInfo, output_dir: Path) -> PdfDocument:
     raw_json = _read_optional_json(output_dir / f"{stem}.json")
 
     if markdown is None and html is None and text is None and not raw_json:
-        raise PdfIntegrationError(file_info.name, "OpenDataLoader produced no readable outputs")
+        raise EmptyPdfOutputError(file_info.name)
 
     metadata = {
         key: raw_json.get(key)

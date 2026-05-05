@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from docflow_agent.errors import MissingPdfDependencyError, PdfIntegrationError
+from docflow_agent.errors import EmptyPdfOutputError, MissingPdfDependencyError, PdfIntegrationError
 import docflow_agent.outbound.external.pdf as pdf_adapter
 from docflow_agent.outbound.external.pdf import OpenDataLoaderPdfClient, extract_pdf_document
 from docflow_agent.types.boundary.common import FileInfo
@@ -57,6 +57,30 @@ def test_extract_pdf_document_uses_opendataloader_outputs(
     assert len(document.elements) == 2
     assert document.elements[0].element_type == "heading"
     assert document.elements[0].bounding_box == [72.0, 700.0, 540.0, 730.0]
+
+
+def test_extract_pdf_document_raises_when_opendataloader_outputs_are_empty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_path = tmp_path / "empty.pdf"
+    source_path.write_bytes(b"%PDF-1.7 fake")
+
+    def fake_convert(**kwargs: object) -> None:
+        output_dir = Path(str(kwargs["output_dir"]))
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setitem(sys.modules, "opendataloader_pdf", types.SimpleNamespace(convert=fake_convert))
+
+    with pytest.raises(EmptyPdfOutputError, match="OpenDataLoader produced no readable outputs"):
+        extract_pdf_document(
+            OpenDataLoaderPdfClient(),
+            FileInfo(
+                name="empty.pdf",
+                path=str(source_path),
+                content_type="application/pdf",
+            ),
+        )
 
 
 def test_extract_pdf_document_requires_optional_dependency(

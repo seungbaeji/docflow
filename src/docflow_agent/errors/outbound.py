@@ -44,6 +44,11 @@ class PdfIntegrationError(OutboundError):
         self.reason = reason
 
 
+class EmptyPdfOutputError(PdfIntegrationError):
+    def __init__(self, file_name: str) -> None:
+        super().__init__(file_name, "OpenDataLoader produced no readable outputs")
+
+
 class StorageIntegrationError(OutboundError):
     def __init__(self, location: str) -> None:
         super().__init__(f"Storage integration failed for location={location}")
