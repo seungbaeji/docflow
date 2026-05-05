@@ -36,7 +36,13 @@ def process_request(
     user_input: str,
     human_decisions: list[HumanDecision] | None,
 ) -> WorkflowState:
-    """Run the process workflow for a single document-processing request."""
+    """Run the stateful process workflow for one `/process` request.
+
+    This usecase is the thin application facade that `inbound` should call.
+    It assembles the compiled process workflow from explicit dependencies,
+    invokes it with the user prompt and optional human decisions, and returns
+    the resulting workflow state unchanged.
+    """
     workflow = create_workflow(
         artifact_repository=artifact_repository,
         workflow_run_store=workflow_run_store,

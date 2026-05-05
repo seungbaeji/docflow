@@ -30,7 +30,11 @@ def build_runtime(
     workflow_run_store: WorkflowRunStore,
     workflow_queue: WorkflowQueuePort,
 ) -> WorkflowRuntime:
-    """Create the small runtime object used by process workflow nodes."""
+    """Create the runtime helper shared by process workflow nodes.
+
+    The runtime bundles cross-cutting orchestration services such as workflow
+    run recording and queue publication. It does not contain business logic.
+    """
     return WorkflowRuntime(
         workflow_run_store=workflow_run_store,
         workflow_queue=workflow_queue,
@@ -48,7 +52,12 @@ def create_workflow(
     pdf_parser: Callable[[OpenDataLoaderPdfClient, FileInfo], PdfDocument],
     workflow_runtime: WorkflowRuntime | None = None,
 ) -> Any:
-    """Build a compiled process workflow from explicit dependencies."""
+    """Build the compiled process workflow from concrete orchestration deps.
+
+    This function is the composition point for the main process graph. It
+    binds repository-backed workflow helpers to the graph's node callables and
+    returns a compiled LangGraph workflow ready to invoke.
+    """
     active_runtime = workflow_runtime or build_runtime(
         workflow_run_store=workflow_run_store,
         workflow_queue=workflow_queue,
