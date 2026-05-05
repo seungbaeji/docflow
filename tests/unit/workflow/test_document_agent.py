@@ -60,6 +60,7 @@ def _build_runtime(tmp_path: Path, llm_gateway: StubDocumentLlmGateway) -> Docum
     return DocumentAgentRuntime(
         llm_gateway=llm_gateway,
         tools=build_document_agent_tools(
+            session_id="session-001",
             session_document_store=session_document_store,
             document_usecases=usecases,
         ),

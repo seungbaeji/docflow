@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import re
 
+from langchain_core.tools import BaseTool
+
 from docflow_agent.errors import DocumentAgentRuntimeError
 from docflow_agent.ports.llm import DocumentLlmPort
 from docflow_agent.types.value.chat import ChatTurn
 from docflow_agent.types.value.document_agent import (
     DocumentAgentResult,
-    DocumentAgentTool,
     DocumentAgentTrace,
     DocumentAgentToolTrace,
 )
@@ -19,7 +20,7 @@ class DocumentAgentRuntime:
         self,
         *,
         llm_gateway: DocumentLlmPort,
-        tools: dict[str, DocumentAgentTool],
+        tools: dict[str, BaseTool],
         system_prompt: str,
         max_steps: int = 4,
     ) -> None:
@@ -66,7 +67,7 @@ class DocumentAgentRuntime:
             tool_arguments = envelope["arguments"]
             if not isinstance(tool_arguments, dict):
                 raise DocumentAgentRuntimeError("tool_call envelope produced non-object arguments")
-            tool_result = tool.invoke(tool_arguments, session_id)
+            tool_result = tool.invoke(tool_arguments)
             tool_traces.append(
                 DocumentAgentToolTrace(
                     tool_name=tool_name,

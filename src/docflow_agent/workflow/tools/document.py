@@ -1,19 +1,33 @@
 from __future__ import annotations
 
+from pydantic import BaseModel, Field
+from langchain_core.tools import BaseTool, tool
+
 from docflow_agent.errors import DocumentAgentRuntimeError
 from docflow_agent.ports.session_context import SessionDocumentStore
-from docflow_agent.types.value.document_agent import DocumentAgentTool
 from docflow_agent.usecases.document_workflow import RepositoryBackedDocumentUsecases
+
+
+class AnswerAboutCurrentDocumentArgs(BaseModel):
+    question: str = Field(min_length=1)
 
 
 def build_document_agent_tools(
     *,
+    session_id: str,
     session_document_store: SessionDocumentStore,
     document_usecases: RepositoryBackedDocumentUsecases,
-) -> dict[str, DocumentAgentTool]:
-    def get_current_document(arguments: dict[str, object], session_id: str) -> dict[str, object]:
-        del arguments
-        source_ref_id = _require_source_ref(session_document_store, session_id)
+) -> dict[str, BaseTool]:
+    def require_source_ref() -> str:
+        source_ref_id = session_document_store.get_current_source_ref(session_id)
+        if source_ref_id is None:
+            raise DocumentAgentRuntimeError("no current document is associated with the session")
+        return source_ref_id
+
+    @tool("get_current_document")
+    def get_current_document() -> dict[str, object]:
+        """Return the current uploaded document metadata for the active session."""
+        source_ref_id = require_source_ref()
         payload = document_usecases.build_document_payload(source_ref_id=source_ref_id)
         return {
             "source_ref_id": payload["source_ref_id"],
@@ -22,9 +36,10 @@ def build_document_agent_tools(
             "file_path": payload["file_path"],
         }
 
-    def parse_current_document(arguments: dict[str, object], session_id: str) -> dict[str, object]:
-        del arguments
-        source_ref_id = _require_source_ref(session_document_store, session_id)
+    @tool("parse_current_document")
+    def parse_current_document() -> dict[str, object]:
+        """Ensure the current document is parsed and return parsed unit metadata."""
+        source_ref_id = require_source_ref()
         payload = document_usecases.build_document_payload(source_ref_id=source_ref_id)
         return {
             "source_ref_id": payload["source_ref_id"],
@@ -34,9 +49,10 @@ def build_document_agent_tools(
             "unit_summaries": payload["unit_summaries"],
         }
 
-    def summarize_current_document(arguments: dict[str, object], session_id: str) -> dict[str, object]:
-        del arguments
-        source_ref_id = _require_source_ref(session_document_store, session_id)
+    @tool("summarize_current_document")
+    def summarize_current_document() -> dict[str, object]:
+        """Return a deterministic summary payload for the current document."""
+        source_ref_id = require_source_ref()
         payload = document_usecases.build_document_payload(source_ref_id=source_ref_id)
         return {
             "source_ref_id": payload["source_ref_id"],
@@ -48,16 +64,10 @@ def build_document_agent_tools(
             "unit_summaries": payload["unit_summaries"],
         }
 
-    def answer_about_current_document(
-        arguments: dict[str, object],
-        session_id: str,
-    ) -> dict[str, object]:
-        source_ref_id = _require_source_ref(session_document_store, session_id)
-        question = arguments.get("question")
-        if not isinstance(question, str) or not question.strip():
-            raise DocumentAgentRuntimeError(
-                "answer_about_current_document requires a non-empty question argument"
-            )
+    @tool("answer_about_current_document", args_schema=AnswerAboutCurrentDocumentArgs)
+    def answer_about_current_document(question: str) -> dict[str, object]:
+        """Return the current document payload for answering a specific question."""
+        source_ref_id = require_source_ref()
         payload = document_usecases.build_document_payload(source_ref_id=source_ref_id)
         return {
             "source_ref_id": payload["source_ref_id"],
@@ -65,35 +75,10 @@ def build_document_agent_tools(
             "payload": payload,
         }
 
-    return {
-        "get_current_document": DocumentAgentTool(
-            name="get_current_document",
-            description="Return the current uploaded document metadata for the active session.",
-            invoke=get_current_document,
-        ),
-        "parse_current_document": DocumentAgentTool(
-            name="parse_current_document",
-            description="Ensure the current document is parsed and return parsed unit metadata.",
-            invoke=parse_current_document,
-        ),
-        "summarize_current_document": DocumentAgentTool(
-            name="summarize_current_document",
-            description="Return a deterministic summary payload for the current document.",
-            invoke=summarize_current_document,
-        ),
-        "answer_about_current_document": DocumentAgentTool(
-            name="answer_about_current_document",
-            description="Return the current document payload for answering a specific question.",
-            invoke=answer_about_current_document,
-        ),
-    }
-
-
-def _require_source_ref(
-    session_document_store: SessionDocumentStore,
-    session_id: str,
-) -> str:
-    source_ref_id = session_document_store.get_current_source_ref(session_id)
-    if source_ref_id is None:
-        raise DocumentAgentRuntimeError("no current document is associated with the session")
-    return source_ref_id
+    tools = [
+        get_current_document,
+        parse_current_document,
+        summarize_current_document,
+        answer_about_current_document,
+    ]
+    return {tool_item.name: tool_item for tool_item in tools}

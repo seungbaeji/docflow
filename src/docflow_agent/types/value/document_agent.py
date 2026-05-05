@@ -1,12 +1,4 @@
-from collections.abc import Callable
 from dataclasses import dataclass, field
-
-
-@dataclass(frozen=True)
-class DocumentAgentTool:
-    name: str
-    description: str
-    invoke: Callable[[dict[str, object], str], dict[str, object]]
 
 
 @dataclass(frozen=True)

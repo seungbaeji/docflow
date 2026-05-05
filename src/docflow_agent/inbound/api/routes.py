@@ -226,6 +226,7 @@ def chat(request: ChatRequest, app_request: Request) -> ChatResponse:
             document_agent_runtime = DocumentAgentRuntime(
                 llm_gateway=container.llm_gateway,
                 tools=build_document_agent_tools(
+                    session_id=session_id,
                     session_document_store=container.session_document_store,
                     document_usecases=document_usecases,
                 ),

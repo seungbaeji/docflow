@@ -70,6 +70,7 @@ def test_document_agent_smoke_with_real_provider(tmp_path: Path) -> None:
     runtime = DocumentAgentRuntime(
         llm_gateway=container.llm_gateway,
         tools=build_document_agent_tools(
+            session_id="smoke-session",
             session_document_store=container.session_document_store,
             document_usecases=usecases,
         ),
